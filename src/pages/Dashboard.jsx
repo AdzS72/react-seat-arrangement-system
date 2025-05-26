@@ -2,31 +2,52 @@ import React, { useState, useRef } from 'react';
 import Draggable from 'react-draggable';
 
 
-export const Dashboard = () => {    
-    const [peserta, setPeserta] = useState([
-        { nama: 'Peserta 1', hadir: true },
-        { nama: 'Peserta 2', hadir: true },
-        { nama: 'Peserta 3', hadir: true },
-        { nama: 'Peserta 4', hadir: true },
-        // You can add more participants as needed
-    ]);
+export const Dashboard = () => {
+    const getInitialPeserta = () => {
+        const saved = localStorage.getItem('peserta');
+        return saved ? JSON.parse(saved) : [
+            { nama: 'Peserta 1', hadir: true },
+            { nama: 'Peserta 2', hadir: true },
+            { nama: 'Peserta 3', hadir: true },
+            { nama: 'Peserta 4', hadir: true },
+        ];
+    };
+    const getInitialFixatedPeserta = () => {
+        const saved = localStorage.getItem('fixatedPeserta');
+        return saved ? JSON.parse(saved) : [
+            { nama: 'Peserta 1', hadir: true },
+            { nama: 'Peserta 2', hadir: true },
+            { nama: 'Peserta 3', hadir: true },
+            { nama: 'Peserta 4', hadir: true },
+        ];
+    };
+    const getInitialMeja = () => {
+        const saved = localStorage.getItem('meja');
+        return saved ? JSON.parse(saved) : 1;
+    };
+    const getInitialTableSeats = (meja) => {
+        const saved = localStorage.getItem('tableSeats');
+        return saved ? JSON.parse(saved) : Array.from({ length: meja }, () => 6);
+    };
+    const getInitialTablePositions = (meja) => {
+        const saved = localStorage.getItem('tablePositions');
+        return saved ? JSON.parse(saved) : Array.from({ length: meja }, () => ({ x: 0, y: 0 }));
+    };
+    const getInitialDragZoneSize = () => {
+        const saved = localStorage.getItem('dragZoneSize');
+        return saved ? JSON.parse(saved) : { width: 1200, height: 900 };
+    };
 
-    const [fixatedPeserta, setFixatedPeserta] = useState([
-        { nama: 'Peserta 1', hadir: true },
-        { nama: 'Peserta 2', hadir: true },
-        { nama: 'Peserta 3', hadir: true },
-        { nama: 'Peserta 4', hadir: true },
-        // You can add more participants as needed
-    ]);
-
-    const [meja, setMeja] = useState(4);
+    const [meja, setMeja] = useState(getInitialMeja());
+    const [peserta, setPeserta] = useState(getInitialPeserta());
+    const [fixatedPeserta, setFixatedPeserta] = useState(getInitialFixatedPeserta());
     const [tableOrder, setTableOrder] = useState(Array.from({ length: meja }, (_, i) => i));
-    const [tableSeats, setTableSeats] = useState(Array.from({ length: meja }, () => 6));
+    const [tableSeats, setTableSeats] = useState(getInitialTableSeats(meja));
     const [selectedTables, setSelectedTables] = useState([]);
-
-    const [dragZoneSize, setDragZoneSize] = useState({ width: 1200, height: 900 });
     const dragZoneRef = useRef(null);
     const isResizing = useRef(false);
+    const [tablePositions, setTablePositions] = useState(getInitialTablePositions(meja));
+    const [dragZoneSize, setDragZoneSize] = useState(getInitialDragZoneSize());
 
     const total = peserta.length;
     const hadir = peserta.filter(p => p.hadir).length;
@@ -40,10 +61,9 @@ export const Dashboard = () => {
         setFixatedPeserta([...fixatedPeserta, { nama: `Peserta ${fixatedPeserta.length + 1}`, hadir: true }]);
     };
 
-    // Track position for each table
-    const [tablePositions, setTablePositions] = useState(
-        Array.from({ length: meja }, () => ({ x: 0, y: 0 }))
-    );
+    React.useEffect(() => {
+        setFixatedPeserta([...peserta]);
+    }, [peserta]);
 
     // Update positions when meja changes
     React.useEffect(() => {
@@ -89,6 +109,25 @@ export const Dashboard = () => {
             window.removeEventListener('mouseup', handleMouseUp);
         };
     }, []);
+
+    React.useEffect(() => {
+        localStorage.setItem('peserta', JSON.stringify(peserta));
+    }, [peserta]);
+    React.useEffect(() => {
+        localStorage.setItem('fixatedPeserta', JSON.stringify(fixatedPeserta));
+    }, [fixatedPeserta]);
+    React.useEffect(() => {
+        localStorage.setItem('meja', JSON.stringify(meja));
+    }, [meja]);
+    React.useEffect(() => {
+        localStorage.setItem('tableSeats', JSON.stringify(tableSeats));
+    }, [tableSeats]);
+    React.useEffect(() => {
+        localStorage.setItem('tablePositions', JSON.stringify(tablePositions));
+    }, [tablePositions]);
+    React.useEffect(() => {
+        localStorage.setItem('dragZoneSize', JSON.stringify(dragZoneSize));
+    }, [dragZoneSize]);
 
 
     // Update position on drag
@@ -210,49 +249,49 @@ export const Dashboard = () => {
 
     return (
         // <DndProvider backend={HTML5Backend}>
-            <div className='p-6'>
-                <div className='grid grid-cols-3 gap-4 mb-6'>
-                    <div className='bg-blue-100 p-4 rounded shadow text-center'>
-                        <h2 className='text-xl font-bold'>Total Peserta</h2>
-                        <p className='text-2xl'>{total}</p>
-                    </div>
-                    <div className='bg-green-100 p-4 rounded shadow text-center'>
-                        <h2 className='text-xl font-bold'>Hadir</h2>
-                        <p className='text-2xl'>{hadir}</p>
-                    </div>
-                    <div className='bg-red-100 p-4 rounded shadow text-center'>
-                        <h2 className='text-xl font-bold'>Tidak Hadir</h2>
-                        <p className='text-2xl'>{tidakHadir}</p>
-                    </div>
+        <div className='p-6'>
+            <div className='grid grid-cols-3 gap-4 mb-6'>
+                <div className='bg-blue-100 p-4 rounded shadow text-center'>
+                    <h2 className='text-xl font-bold'>Total Peserta</h2>
+                    <p className='text-2xl'>{total}</p>
                 </div>
-                <div className='flex flex-col lg:flex-row gap-6'>
-                    <div className='flex-1'>
-                        <div className='mb-4 flex items-center gap-3 pb-3'>
-                            <button onClick={handleTambahMeja} className='bg-blue-600 text-white mr-2 px-4 py-2 rounded hover:bg-blue-700'>
-                                Tambah Meja
-                            </button>
-                            <button onClick={handleKurangiMeja} className='bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700'>
-                                Kurangi Meja
-                            </button>
-                            <span className='bg-gray-200 ml-2 text-gray-800 px-4 py-2 rounded border text-sm font-medium'>
-                                Total Meja: {meja}
-                            </span>
-                        </div>
-                        
-                        <div
-                            ref={dragZoneRef}
-                            className='relative'
-                            style={{
-                                minHeight: 600,
-                                // minWidth: 600,
-                                width: dragZoneSize.width,
-                                height: dragZoneSize.height,
-                                border: '1px dashed #ccc',
-                                position: 'relative',
-                                resize: 'none', // prevent browser default resize
-                                overflow: 'auto'
-                            }}
-                        >
+                <div className='bg-green-100 p-4 rounded shadow text-center'>
+                    <h2 className='text-xl font-bold'>Hadir</h2>
+                    <p className='text-2xl'>{hadir}</p>
+                </div>
+                <div className='bg-red-100 p-4 rounded shadow text-center'>
+                    <h2 className='text-xl font-bold'>Tidak Hadir</h2>
+                    <p className='text-2xl'>{tidakHadir}</p>
+                </div>
+            </div>
+            <div className='flex flex-col lg:flex-row gap-6'>
+                <div className='flex-1'>
+                    <div className='mb-4 flex items-center gap-3 pb-3'>
+                        <button onClick={handleTambahMeja} className='bg-blue-600 text-white mr-2 px-4 py-2 rounded hover:bg-blue-700'>
+                            Tambah Meja
+                        </button>
+                        <button onClick={handleKurangiMeja} className='bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700'>
+                            Kurangi Meja
+                        </button>
+                        <span className='bg-gray-200 ml-2 text-gray-800 px-4 py-2 rounded border text-sm font-medium'>
+                            Total Meja: {meja}
+                        </span>
+                    </div>
+
+                    <div
+                        ref={dragZoneRef}
+                        className='relative'
+                        style={{
+                            minHeight: 600,
+                            // minWidth: 600,
+                            width: dragZoneSize.width,
+                            height: dragZoneSize.height,
+                            border: '1px dashed #ccc',
+                            position: 'relative',
+                            resize: 'none', // prevent browser default resize
+                            overflow: 'auto'
+                        }}
+                    >
                         {tableOrder.map((mejaIndex, visualIndex) => (
                             <Draggable
                                 key={mejaIndex}
@@ -363,15 +402,20 @@ export const Dashboard = () => {
                                                                 onClick={() => {
                                                                     if (peserta) {
                                                                         const pesertaIndex = fixatedPeserta.findIndex(
-                                                                            p => fixatedPeserta && p.nama === peserta.nama
+                                                                            p => p && p.nama === peserta.nama
                                                                         );
-                                                                        toggleHadir(pesertaIndex);
+                                                                        console.log("Peserta Index:", pesertaIndex);
+                                                                        console.log("Peserta:", peserta);
+                                                                        console.log("Fixated Peserta:", fixatedPeserta);
+                                                                        if (pesertaIndex !== -1) {
+                                                                            toggleHadir(pesertaIndex);
+                                                                        }
                                                                     }
                                                                 }}
                                                             >
                                                                 {peserta ? (
                                                                     <span className="truncate max-w-[80%]">
-                                                                        {idx+1}
+                                                                        {idx + 1}
                                                                     </span>
                                                                 ) : (
                                                                     "❌"
@@ -379,7 +423,7 @@ export const Dashboard = () => {
                                                             </button>
                                                             {/* Tooltip on hover */}
                                                             {peserta && (
-                                                                <div className="absolute left-1/2 -translate-x-1/2 -top-8 z-10 hidden group-hover:block bg-black text-white text-xs rounded px-2 py-1 whitespace-nowrap pointer-events-none">
+                                                                <div className="absolute left-1/2 -translate-x-1/2 -top-8 z-50 hidden group-hover:block bg-black text-white text-xs rounded px-2 py-1 whitespace-nowrap pointer-events-none">
                                                                     {peserta.nama}
                                                                 </div>
                                                             )}
@@ -387,9 +431,9 @@ export const Dashboard = () => {
                                                     );
                                                 });
                                             })()}
-                                            
+
                                         </div>
-                                        
+
                                     </div>
                                     {(() => {
                                         const seatCount = tableSeats[mejaIndex] || 6;
@@ -406,12 +450,12 @@ export const Dashboard = () => {
 
                                         return (
                                             <div className="w-full mt-2 flex flex-row gap-2 justify-center">
-                                                <div className="flex-1 text-xs bg-gray-50 rounded p-1 min-h-[24px]">
+                                                <div className="flex-1 text-s bg-gray-50 rounded p-1 min-h-[24px]">
                                                     {col1.map((p, i) => (
                                                         <div key={i} className="truncate">{p.seat + 1}. {p.nama}</div>
                                                     ))}
                                                 </div>
-                                                <div className="flex-1 text-xs bg-gray-50 rounded p-1 min-h-[24px]">
+                                                <div className="flex-1 text-s bg-gray-50 rounded p-1 min-h-[24px]">
                                                     {col2.map((p, i) => (
                                                         <div key={i} className="truncate">{p.seat + 1}. {p.nama}</div>
                                                     ))}
@@ -419,72 +463,72 @@ export const Dashboard = () => {
                                             </div>
                                         );
                                     })()}
-                                    
-                                
+
+
                                 </div>
                             </Draggable>
                         ))}
                         <div
-                                        style={{
-                                            position: 'absolute',
-                                            right: 0,
-                                            bottom: 0,
-                                            width: 24,
-                                            height: 24,
-                                            cursor: 'nwse-resize',
-                                            zIndex: 50,
-                                            background: 'rgba(0,0,0,0.05)',
-                                            borderTop: '1px solid #ccc',
-                                            borderLeft: '1px solid #ccc',
-                                            borderBottomRightRadius: 6,
-                                            display: 'flex',
-                                            alignItems: 'flex-end',
-                                            justifyContent: 'flex-end',
-                                            userSelect: 'none'
-                                        }}
-                                        onMouseDown={e => {
-                                            e.preventDefault();
-                                            isResizing.current = true;
-                                        }}
-                                        title="Resize area"
-                                    >
-                                        <svg width="18" height="18" viewBox="0 0 18 18" className="opacity-40">
-                                            <path d="M2 16h12M6 12h8M10 8h4" stroke="#888" strokeWidth="2" fill="none"/>
-                                        </svg>
-                                    </div>
-                    </div>  
-
-                        <div className="mt-6">
-                            <button onClick={handlePrint} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
-                                Cetak Layout
-                            </button>
+                            style={{
+                                position: 'absolute',
+                                right: 0,
+                                bottom: 0,
+                                width: 24,
+                                height: 24,
+                                cursor: 'nwse-resize',
+                                zIndex: 50,
+                                background: 'rgba(0,0,0,0.05)',
+                                borderTop: '1px solid #ccc',
+                                borderLeft: '1px solid #ccc',
+                                borderBottomRightRadius: 6,
+                                display: 'flex',
+                                alignItems: 'flex-end',
+                                justifyContent: 'flex-end',
+                                userSelect: 'none'
+                            }}
+                            onMouseDown={e => {
+                                e.preventDefault();
+                                isResizing.current = true;
+                            }}
+                            title="Resize area"
+                        >
+                            <svg width="18" height="18" viewBox="0 0 18 18" className="opacity-40">
+                                <path d="M2 16h12M6 12h8M10 8h4" stroke="#888" strokeWidth="2" fill="none" />
+                            </svg>
                         </div>
                     </div>
-                    <div className='w-full lg:w-80 flex-shrink-0'>
-                        <div className='flex justify-between items-center mb-3'>
-                            <h2 className='text-lg font-semibold'>Daftar Peserta</h2>
-                            <button onClick={handleTambahPeserta} className='bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600'>
-                                + Tambah
-                            </button>
-                        </div>
-                        <div className="space-y-3">
-                            {peserta.map((p, index) => (
-                                <div key={index} className="flex items-center gap-2 p-2 border rounded bg-white shadow-sm">
-                                    <input type='text' value={p.nama} onChange={e => handleGantiNama(index, e.target.value)} className='flex-grow border rounded px-2 py-1 text-sm' />
-                                    <button onClick={() => toggleHadir(index)} className={`text-xs px-2 py-1 rounded ${p.hadir ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`}>
-                                        {p.hadir ? 'Hadir' : 'Tidak'}
-                                    </button>
-                                    <button onClick={() => {
-                                        const updated = [...peserta];
-                                        updated.splice(index, 1);
-                                        setPeserta(updated);
-                                    }} title='Hapus Peserta' className='text-red-500 hover:text-red-700 ml-1 text-sm font-bold px-2'> &times; </button>
-                                </div>
-                            ))}
-                        </div>
+
+                    <div className="mt-6">
+                        <button onClick={handlePrint} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                            Cetak Layout
+                        </button>
+                    </div>
+                </div>
+                <div className='w-full lg:w-80 flex-shrink-0'>
+                    <div className='flex justify-between items-center mb-3'>
+                        <h2 className='text-lg font-semibold'>Daftar Peserta</h2>
+                        <button onClick={handleTambahPeserta} className='bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600'>
+                            + Tambah
+                        </button>
+                    </div>
+                    <div className="space-y-3">
+                        {peserta.map((p, index) => (
+                            <div key={index} className="flex items-center gap-2 p-2 border rounded bg-white shadow-sm">
+                                <input type='text' value={p.nama} onChange={e => handleGantiNama(index, e.target.value)} className='flex-grow border rounded px-2 py-1 text-sm' />
+                                <button onClick={() => toggleHadir(index)} className={`text-xs px-2 py-1 rounded ${p.hadir ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`}>
+                                    {p.hadir ? 'Hadir' : 'Tidak'}
+                                </button>
+                                <button onClick={() => {
+                                    const updated = [...peserta];
+                                    updated.splice(index, 1);
+                                    setPeserta(updated);
+                                }} title='Hapus Peserta' className='text-red-500 hover:text-red-700 ml-1 text-sm font-bold px-2'> &times; </button>
+                            </div>
+                        ))}
                     </div>
                 </div>
             </div>
+        </div>
         // </DndProvider>
     );
 };

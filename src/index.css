@@ -19,4 +19,6 @@ code {
 /* Tooltip styling for group-hover */
 .group:hover .group-hover\:block {
     display: block;
+    z-index: 50;
+    position: absolute;
 }
