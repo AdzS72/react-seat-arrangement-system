@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import Draggable from 'react-draggable';
 
 
@@ -23,6 +23,10 @@ export const Dashboard = () => {
     const [tableOrder, setTableOrder] = useState(Array.from({ length: meja }, (_, i) => i));
     const [tableSeats, setTableSeats] = useState(Array.from({ length: meja }, () => 6));
     const [selectedTables, setSelectedTables] = useState([]);
+
+    const [dragZoneSize, setDragZoneSize] = useState({ width: 1200, height: 900 });
+    const dragZoneRef = useRef(null);
+    const isResizing = useRef(false);
 
     const total = peserta.length;
     const hadir = peserta.filter(p => p.hadir).length;
@@ -68,6 +72,23 @@ export const Dashboard = () => {
             return prev;
         });
     }, [meja]);
+
+    React.useEffect(() => {
+        const handleMouseMove = (e) => {
+            if (!isResizing.current) return;
+            setDragZoneSize(prev => ({
+                width: Math.max(600, e.clientX - dragZoneRef.current.getBoundingClientRect().left),
+                height: Math.max(400, e.clientY - dragZoneRef.current.getBoundingClientRect().top)
+            }));
+        };
+        const handleMouseUp = () => { isResizing.current = false; };
+        window.addEventListener('mousemove', handleMouseMove);
+        window.addEventListener('mouseup', handleMouseUp);
+        return () => {
+            window.removeEventListener('mousemove', handleMouseMove);
+            window.removeEventListener('mouseup', handleMouseUp);
+        };
+    }, []);
 
 
     // Update position on drag
@@ -219,9 +240,19 @@ export const Dashboard = () => {
                         </div>
                         
                         <div
-                        className='relative'
-                        style={{ minHeight: 600, border: '1px dashed #ccc', position: 'relative' }}
-                    >
+                            ref={dragZoneRef}
+                            className='relative'
+                            style={{
+                                minHeight: 600,
+                                // minWidth: 600,
+                                width: dragZoneSize.width,
+                                height: dragZoneSize.height,
+                                border: '1px dashed #ccc',
+                                position: 'relative',
+                                resize: 'none', // prevent browser default resize
+                                overflow: 'auto'
+                            }}
+                        >
                         {tableOrder.map((mejaIndex, visualIndex) => (
                             <Draggable
                                 key={mejaIndex}
@@ -356,11 +387,71 @@ export const Dashboard = () => {
                                                     );
                                                 });
                                             })()}
+                                            
                                         </div>
+                                        
                                     </div>
+                                    {(() => {
+                                        const seatCount = tableSeats[mejaIndex] || 6;
+                                        // Collect peserta for this table with seat number
+                                        const pesertaTable = [];
+                                        for (let idx = 0; idx < seatCount; idx++) {
+                                            const peserta = arrangedPeserta[mejaIndex * 100 + idx];
+                                            if (peserta) pesertaTable.push({ nama: peserta.nama, seat: idx });
+                                        }
+                                        // Split into two columns
+                                        const mid = Math.ceil(pesertaTable.length / 2);
+                                        const col1 = pesertaTable.slice(0, mid);
+                                        const col2 = pesertaTable.slice(mid);
+
+                                        return (
+                                            <div className="w-full mt-2 flex flex-row gap-2 justify-center">
+                                                <div className="flex-1 text-xs bg-gray-50 rounded p-1 min-h-[24px]">
+                                                    {col1.map((p, i) => (
+                                                        <div key={i} className="truncate">{p.seat + 1}. {p.nama}</div>
+                                                    ))}
+                                                </div>
+                                                <div className="flex-1 text-xs bg-gray-50 rounded p-1 min-h-[24px]">
+                                                    {col2.map((p, i) => (
+                                                        <div key={i} className="truncate">{p.seat + 1}. {p.nama}</div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        );
+                                    })()}
+                                    
+                                
                                 </div>
                             </Draggable>
                         ))}
+                        <div
+                                        style={{
+                                            position: 'absolute',
+                                            right: 0,
+                                            bottom: 0,
+                                            width: 24,
+                                            height: 24,
+                                            cursor: 'nwse-resize',
+                                            zIndex: 50,
+                                            background: 'rgba(0,0,0,0.05)',
+                                            borderTop: '1px solid #ccc',
+                                            borderLeft: '1px solid #ccc',
+                                            borderBottomRightRadius: 6,
+                                            display: 'flex',
+                                            alignItems: 'flex-end',
+                                            justifyContent: 'flex-end',
+                                            userSelect: 'none'
+                                        }}
+                                        onMouseDown={e => {
+                                            e.preventDefault();
+                                            isResizing.current = true;
+                                        }}
+                                        title="Resize area"
+                                    >
+                                        <svg width="18" height="18" viewBox="0 0 18 18" className="opacity-40">
+                                            <path d="M2 16h12M6 12h8M10 8h4" stroke="#888" strokeWidth="2" fill="none"/>
+                                        </svg>
+                                    </div>
                     </div>  
 
                         <div className="mt-6">
