@@ -49,6 +49,8 @@ export const Dashboard = () => {
     const [tablePositions, setTablePositions] = useState(getInitialTablePositions(meja));
     const [dragZoneSize, setDragZoneSize] = useState(getInitialDragZoneSize());
 
+    const [eventName, setEventName] = useState('');
+
     const total = peserta.length;
     const hadir = peserta.filter(p => p.hadir).length;
     const tidakHadir = total - hadir;
@@ -59,6 +61,11 @@ export const Dashboard = () => {
     const handleTambahPeserta = () => {
         setPeserta([...peserta, { nama: `Peserta ${peserta.length + 1}`, hadir: true }]);
         setFixatedPeserta([...fixatedPeserta, { nama: `Peserta ${fixatedPeserta.length + 1}`, hadir: true }]);
+    };
+
+    const handleChangeEventName = (text) => {
+        setEventName(text);
+        localStorage.setItem('eventName', text);
     };
 
     React.useEffect(() => {
@@ -130,15 +137,6 @@ export const Dashboard = () => {
     }, [dragZoneSize]);
 
 
-    // Update position on drag
-    const handleDrag = (index, e, data) => {
-        setTablePositions((prev) => {
-            const updated = [...prev];
-            updated[index] = { x: data.x, y: data.y };
-            return updated;
-        });
-    };
-
     // Add seat to a table
     const handleAddSeat = (tableIdx) => {
         setTableSeats((prev) => {
@@ -162,17 +160,6 @@ export const Dashboard = () => {
         updated[index].hadir = !updated[index].hadir;
         setPeserta(updated);
     };
-
-    // Update seatingOrder and arrangedPeserta to use tableSeats
-    const seatingOrder = React.useMemo(() => {
-        const order = [];
-        for (let t = 0; t < meja; t++) {
-            for (let s = 0; s < (tableSeats[t] || 6); s++) {
-                order.push({ table: t, seat: s });
-            }
-        }
-        return order;
-    }, [meja, tableSeats]);
 
     const arrangedPeserta = React.useMemo(() => {
         const result = [];
@@ -292,6 +279,9 @@ export const Dashboard = () => {
                             overflow: 'auto'
                         }}
                     >
+                        <div className='p-4 text-center'>
+                            <h2 className='text-xl font-bold'>{eventName}</h2>
+                        </div>
                         {tableOrder.map((mejaIndex, visualIndex) => (
                             <Draggable
                                 key={mejaIndex}
@@ -505,6 +495,13 @@ export const Dashboard = () => {
                     </div>
                 </div>
                 <div className='w-full lg:w-80 flex-shrink-0'>
+                    <div className="space-y-3" >
+                        <span className="text-lg font-semibold">Nama Kegiatan: </span>
+                    </div>
+                    <div className="space-y-3" >
+                        <textarea type='text' onChange={e => handleChangeEventName(e.target.value)} className="form-control flex-grow border rounded px-2 py-1 text-sm w-full"
+                            style={{ resize: "vertical" }} />
+                    </div>
                     <div className='flex justify-between items-center mb-3'>
                         <h2 className='text-lg font-semibold'>Daftar Peserta</h2>
                         <button onClick={handleTambahPeserta} className='bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600'>
