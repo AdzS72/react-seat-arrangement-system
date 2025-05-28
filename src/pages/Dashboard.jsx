@@ -1,59 +1,36 @@
 import React, { useState, useRef, useEffect } from 'react';
 import Draggable from 'react-draggable';
 import axios from 'axios';
+import Select from 'react-select';
 
 const Dashboard = () => {
-    const getInitialPeserta = () => {
-        const saved = localStorage.getItem('peserta');
-        return saved ? JSON.parse(saved) : [
-            { nama: 'Peserta 1', hadir: true },
-            { nama: 'Peserta 2', hadir: true },
-            { nama: 'Peserta 3', hadir: true },
-            { nama: 'Peserta 4', hadir: true },
-        ];
-    };
-    const getInitialFixatedPeserta = () => {
-        const saved = localStorage.getItem('fixatedPeserta');
-        return saved ? JSON.parse(saved) : [
-            { nama: 'Peserta 1', hadir: true },
-            { nama: 'Peserta 2', hadir: true },
-            { nama: 'Peserta 3', hadir: true },
-            { nama: 'Peserta 4', hadir: true },
-        ];
-    };
-    const getInitialMeja = () => {
-        const saved = localStorage.getItem('meja');
-        return saved ? JSON.parse(saved) : 1;
-    };
-    const getInitialTableSeats = (meja) => {
-        const saved = localStorage.getItem('tableSeats');
-        return saved ? JSON.parse(saved) : Array.from({ length: meja }, () => 6);
-    };
-    const getInitialTablePositions = (meja) => {
-        const saved = localStorage.getItem('tablePositions');
-        return saved ? JSON.parse(saved) : Array.from({ length: meja }, () => ({ x: 0, y: 0 }));
-    };
-    const getInitialDragZoneSize = () => {
-        const saved = localStorage.getItem('dragZoneSize');
-        return saved ? JSON.parse(saved) : { width: 1200, height: 900 };
-    };
 
-    const [meja, setMeja] = useState(getInitialMeja());
-    const [peserta, setPeserta] = useState(getInitialPeserta());
-    const [fixatedPeserta, setFixatedPeserta] = useState(getInitialFixatedPeserta());
+    const data = [
+        { nama: 'Peserta 1', hadir: true },
+        { nama: 'Peserta 2', hadir: true },
+        { nama: 'Peserta 3', hadir: true },
+        { nama: 'Peserta 4', hadir: true },
+    ];
+
+    const [meja, setMeja] = useState('');
+    const [peserta, setPeserta] = useState(data);
+    const [fixatedPeserta, setFixatedPeserta] = useState('');
     const [tableOrder, setTableOrder] = useState(Array.from({ length: meja }, (_, i) => i));
-    const [tableSeats, setTableSeats] = useState(getInitialTableSeats(meja));
+    const [tableSeats, setTableSeats] = useState('');
     const [selectedTables, setSelectedTables] = useState([]);
     const dragZoneRef = useRef(null);
     const isResizing = useRef(false);
-    const [tablePositions, setTablePositions] = useState(getInitialTablePositions(meja));
-    const [dragZoneSize, setDragZoneSize] = useState(getInitialDragZoneSize());
+    const [tablePositions, setTablePositions] = useState('');
+    const [dragZoneSize, setDragZoneSize] = useState({ width: 1800, height: 600 });
     const [stagePos, setStagePos] = useState({ x: 0, y: 0 });
     const [arrowPos, setArrowPos] = useState({ x: 0, y: 0 });
 
     const [eventName, setEventName] = useState('');
     const [layoutName, setLayoutName] = useState('');
     const [layouts, setLayouts] = useState([]);
+
+    const [options, setOptions] = useState([]);
+    const [selectedOption, setSelectedOption] = useState(null);
 
 
     const [successAlert, setSuccessAlert] = useState(false);
@@ -139,6 +116,63 @@ const Dashboard = () => {
         }
     };
 
+    const handleSelectLayout = (option) => {
+        setSelectedOption(option);
+        if (option && option.layoutData) {
+            const layout = option.layoutData;
+            setLayoutName(layout.name || '');
+            setEventName(layout.event_name || '');
+            setMeja(Number(layout.table) || 0);
+            setPeserta(layout.peserta || []);
+            setFixatedPeserta(layout.fixated_peserta || []);
+            setTableSeats(layout.seat || []);
+            setTablePositions(layout.position_table || []);
+            setDragZoneSize(layout.dragzone_size || { width: 1800, height: 600 });
+            setStagePos(layout.position_stage || { x: 0, y: 0 });
+            setArrowPos(layout.position_arrow || { x: 0, y: 0 });
+        }
+    };
+
+    React.useEffect(() => {
+        function getLayout() {
+            axios
+                .get(`${process.env.REACT_APP_BACKEND}/getLayout`)
+                .then(function (response) {
+                    if (response.status == 200) {
+                        // Convert peserta and fixated_peserta fields to array of objects
+                        const layouts = response.data;
+                        console.log('data layout', layouts);
+                        setLayouts(layouts);
+                        if (layouts && layouts.length > 0) {
+                            setOptions(
+                                layouts.map((layout, idx) => ({
+                                    value: layout.id || idx, // use layout.id if available, otherwise index
+                                    label: layout.name,
+                                    layoutData: layout, // keep the whole layout for easy access
+                                }))
+                            );
+                        }
+                    } else {
+                        console.log("Tidak berhasil mengambil postingan");
+                        return;
+                    }
+                })
+                .catch(async function (error) {
+                    if (!error.response) {
+                        // network error
+                        error.errorStatus = "Error: Network Error";
+                    } else {
+                        error.errorStatus = error.response.data.message;
+                    }
+                });
+        }
+
+        return () => {
+            getLayout();
+
+        };
+    }, []);
+
 
     React.useEffect(() => {
         setFixatedPeserta([...peserta]);
@@ -175,8 +209,9 @@ const Dashboard = () => {
     React.useEffect(() => {
         const handleMouseMove = (e) => {
             if (!isResizing.current) return;
+            const maxWidth = window.innerWidth - dragZoneRef.current.getBoundingClientRect().left - 50; // 32px for some margin
             setDragZoneSize(prev => ({
-                width: Math.max(600, e.clientX - dragZoneRef.current.getBoundingClientRect().left),
+                width: Math.min(Math.max(600, e.clientX - dragZoneRef.current.getBoundingClientRect().left), maxWidth),
                 height: Math.max(400, e.clientY - dragZoneRef.current.getBoundingClientRect().top)
             }));
         };
@@ -631,31 +666,21 @@ const Dashboard = () => {
                         </div>
                     </div>
                     <div className='flex gap-3'>
-                        {/* <div className="mt-6">
+                        <div className="mt-6" style={{ minWidth: 220 }}>
                             <Select
-                                options={selectOptions}
-                                value={layoutName ? { value: layoutName, label: layoutName } : null}
-                                onChange={option => {
-                                    if (option) {
-                                        setLayoutName(option.value);
-                                        handleSelectLayout(option.value);
-                                    } else {
-                                        setLayoutName('');
-                                    }
-                                }}
-                                onInputChange={inputValue => setLayoutName(inputValue)}
-                                placeholder="Pilih atau ketik nama layout"
+                                options={options}
+                                value={selectedOption}
+                                onChange={handleSelectLayout}
+                                placeholder="Pilih layout"
                                 isClearable
-                                isLoading={isLoadingLayouts}
-                                noOptionsMessage={() => layoutName ? `Layout "${layoutName}" belum disimpan` : "Tidak ada layout"}
+                                getOptionLabel={option => option.label}
+                                getOptionValue={option => option.value}
                                 styles={{
                                     container: base => ({ ...base, minWidth: 220 }),
                                     menu: base => ({ ...base, zIndex: 9999 }),
                                 }}
-                                inputValue={layoutName}
-                                onBlur={() => { }}
                             />
-                        </div> */}
+                        </div>
                         {/* Input for new layout name */}
                         <div className="mt-6">
                             <input
@@ -672,24 +697,24 @@ const Dashboard = () => {
                                 onClick={handleSaveLayout}
                                 className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
                             >
-                                <i class="bi bi-floppy-fill pr-3"></i>Simpan Layout
+                                <i className="bi bi-floppy-fill pr-3"></i>Simpan Layout
                             </button>
                         </div>
                         <div className="mt-6">
                             <button onClick={handlePrint} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
-                                <i class="bi bi-printer-fill pr-3"></i>Cetak Layout
+                                <i className="bi bi-printer-fill pr-3"></i>Cetak Layout
                             </button>
                         </div>
                     </div>
                     {successAlert && (
-                        <div class="col col-auto">
-                            <div class="alert alert-success" role="alert">
+                        <div className="col col-auto">
+                            <div className="alert alert-success" role="alert">
                                 Data Berhasil Disimpan!
                             </div>
                         </div>
                     )}
                     {error && (
-                        <div class="alert alert-danger" role="alert">
+                        <div className="alert alert-danger" role="alert">
                             {error}
                         </div>
                     )}
@@ -700,7 +725,7 @@ const Dashboard = () => {
                         <span className="text-lg font-semibold">Nama Kegiatan: </span>
                     </div>
                     <div className="space-y-3" >
-                        <textarea type='text' onChange={e => handleChangeEventName(e.target.value)} className="form-control flex-grow border rounded px-2 py-1 text-sm w-full"
+                        <textarea type='text' value={eventName} onChange={e => handleChangeEventName(e.target.value)} className="form-control flex-grow border rounded px-2 py-1 text-sm w-full"
                             style={{ resize: "vertical" }} />
                     </div>
                 </div>
