@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import Draggable from 'react-draggable';
+import axios from 'axios';
 
 const Dashboard = () => {
     const getInitialPeserta = () => {
@@ -51,11 +52,17 @@ const Dashboard = () => {
     const [arrowPos, setArrowPos] = useState({ x: 0, y: 0 });
 
     const [eventName, setEventName] = useState('');
+    const [layoutName, setLayoutName] = useState('');
+    const [layouts, setLayouts] = useState([]);
 
+
+    const [successAlert, setSuccessAlert] = useState(false);
+    const [error, setError] = useState(null);
 
     const total = peserta.length;
     const hadir = peserta.filter(p => p.hadir).length;
     const tidakHadir = total - hadir;
+
 
     const handleTambahMeja = () => setMeja(prev => prev + 1);
     const handleKurangiMeja = () => setMeja(prev => (prev > 1 ? prev - 1 : 1));
@@ -69,6 +76,69 @@ const Dashboard = () => {
         setEventName(text);
         localStorage.setItem('eventName', text);
     };
+
+    const handleChangeLayoutName = (text) => {
+        setLayoutName(text);
+    };
+
+    const handleSaveLayout = async (event) => {
+        event.preventDefault();
+        if (!layoutName) {
+            setError("Nama layout tidak boleh kosong");
+            setTimeout(() => setError(null), 3000);
+            return;
+        }
+        const payload = {
+            name: layoutName,
+            event_name: eventName,
+            table: meja,
+            peserta: peserta,
+            fixated_peserta: fixatedPeserta,
+            seat: tableSeats,
+            position_table: tablePositions,
+            dragzone_size: dragZoneSize,
+            position_stage: stagePos,
+            position_arrow: arrowPos,
+        };
+
+        console.log(payload)
+
+        try {
+            const response = await axios.post(
+                `${process.env.REACT_APP_BACKEND}/saveLayout`,
+                payload
+            );
+            if (response.data.message === "Layout berhasil disimpan") {
+                setSuccessAlert(true);
+                setTimeout(() => setSuccessAlert(false), 3000);
+                // Refresh layouts
+                axios.get(`${process.env.REACT_APP_BACKEND}/getLayout`)
+                    .then(res => setLayouts(res.data.layouts || []));
+            } else if (response.data.message === "duplicate") {
+                // Instead of error, update the layout
+                const updateRes = await axios.put(
+                    `${process.env.REACT_APP_BACKEND}/updateLayout}`,
+                    payload
+                );
+                if (updateRes.data.message === "Layout berhasil diupdate") {
+                    setSuccessAlert(true);
+                    setTimeout(() => setSuccessAlert(false), 3000);
+                    axios.get(`${process.env.REACT_APP_BACKEND}/getLayout`)
+                        .then(res => setLayouts(res.data.layouts || []));
+                } else {
+                    setError("Gagal mengupdate layout");
+                    setTimeout(() => setError(null), 3000);
+                }
+            } else {
+                setError("Gagal menyimpan layout");
+                setTimeout(() => setError(null), 3000);
+            }
+        } catch (error) {
+            setError("Gagal menyimpan layout");
+            setTimeout(() => setError(null), 3000);
+        }
+    };
+
 
     React.useEffect(() => {
         setFixatedPeserta([...peserta]);
@@ -560,13 +630,71 @@ const Dashboard = () => {
                             </svg>
                         </div>
                     </div>
-
-                    <div className="mt-6">
-                        <button onClick={handlePrint} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
-                            Cetak Layout
-                        </button>
+                    <div className='flex gap-3'>
+                        {/* <div className="mt-6">
+                            <Select
+                                options={selectOptions}
+                                value={layoutName ? { value: layoutName, label: layoutName } : null}
+                                onChange={option => {
+                                    if (option) {
+                                        setLayoutName(option.value);
+                                        handleSelectLayout(option.value);
+                                    } else {
+                                        setLayoutName('');
+                                    }
+                                }}
+                                onInputChange={inputValue => setLayoutName(inputValue)}
+                                placeholder="Pilih atau ketik nama layout"
+                                isClearable
+                                isLoading={isLoadingLayouts}
+                                noOptionsMessage={() => layoutName ? `Layout "${layoutName}" belum disimpan` : "Tidak ada layout"}
+                                styles={{
+                                    container: base => ({ ...base, minWidth: 220 }),
+                                    menu: base => ({ ...base, zIndex: 9999 }),
+                                }}
+                                inputValue={layoutName}
+                                onBlur={() => { }}
+                            />
+                        </div> */}
+                        {/* Input for new layout name */}
+                        <div className="mt-6">
+                            <input
+                                type="text"
+                                value={layoutName}
+                                onChange={e => handleChangeLayoutName(e.target.value)}
+                                className="form-control border rounded px-3 py-2 text-sm w-full"
+                                placeholder="Masukkan nama layout"
+                                style={{ maxWidth: 220 }}
+                            />
+                        </div>
+                        <div className='mt-6'>
+                            <button
+                                onClick={handleSaveLayout}
+                                className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+                            >
+                                <i class="bi bi-floppy-fill pr-3"></i>Simpan Layout
+                            </button>
+                        </div>
+                        <div className="mt-6">
+                            <button onClick={handlePrint} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                                <i class="bi bi-printer-fill pr-3"></i>Cetak Layout
+                            </button>
+                        </div>
                     </div>
+                    {successAlert && (
+                        <div class="col col-auto">
+                            <div class="alert alert-success" role="alert">
+                                Data Berhasil Disimpan!
+                            </div>
+                        </div>
+                    )}
+                    {error && (
+                        <div class="alert alert-danger" role="alert">
+                            {error}
+                        </div>
+                    )}
                 </div>
+
                 <div className='w-full flex-shrink-0'>
                     <div className="space-y-3" >
                         <span className="text-lg font-semibold">Nama Kegiatan: </span>

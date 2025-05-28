@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import React, { use, useState } from "react";
 import bg from "../images/bg_login.jpg";
-// import logo_unhan from "../images/logo_unhan.png";
+import logo_tni_au from "../images/Lambang_TNI_AU.png";
 // import logo_kpl from "../images/kaporlap_logo.png";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
@@ -41,6 +41,7 @@ export const Login = () => {
                 }
             })
             .catch(async function (error) {
+                console.log(username, password);
                 console.log(error);
                 setError("Gagal Melakukan Login");
                 setTimeout(() => {
@@ -71,14 +72,14 @@ export const Login = () => {
                     boxShadow: "0px 0px 10px rgba(0,0,0,0.2)",
                 }}
             >
-                {/* <a href="#" class="d-flex justify-content-center mb-4">
-          <img src={logo_unhan} alt="" width="100"></img>
-          <img src={logo_kpl} alt="" width="100"></img>
-        </a> */}
+                <a href="#" class="d-flex justify-content-center mb-4">
+                    <img src={logo_tni_au} alt="" width="100"></img>
+                    {/* <img src={logo_kpl} alt="" width="100"></img> */}
+                </a>
 
-                <div class="text-center mb-5">
-                    <h3 class="fw-bold">Sign In</h3>
-                    <p class="text-secondary">Manajemen Kaporlap Mahasiswa UNHAN RI</p>
+                <div class="text-center mb-3">
+                    <h1 class="fw-bold pb-2" style={{ fontSize: 25 }}>Login</h1>
+                    <p class="text-secondary">Seating Arrangement SETUMAU</p>
                 </div>
 
                 {error && (
@@ -93,7 +94,7 @@ export const Login = () => {
                             <span class="input-group-text">
                                 <i class="bi bi-person"></i>
                             </span>
-                            <input type="text" class="form-control form-control-lg fs-6" name="username" placeholder="username" aria-describedby="emailHelp"></input>
+                            <input type="text" class="form-control form-control-lg fs-6" name="username" placeholder="Username" aria-describedby="emailHelp"></input>
                         </div>
                     </div>
                     <div class="input-group mb-3">
