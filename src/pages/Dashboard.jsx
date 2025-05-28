@@ -1,8 +1,7 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import Draggable from 'react-draggable';
 
-
-export const Dashboard = () => {
+const Dashboard = () => {
     const getInitialPeserta = () => {
         const saved = localStorage.getItem('peserta');
         return saved ? JSON.parse(saved) : [
@@ -48,8 +47,11 @@ export const Dashboard = () => {
     const isResizing = useRef(false);
     const [tablePositions, setTablePositions] = useState(getInitialTablePositions(meja));
     const [dragZoneSize, setDragZoneSize] = useState(getInitialDragZoneSize());
+    const [stagePos, setStagePos] = useState({ x: 0, y: 0 });
+    const [arrowPos, setArrowPos] = useState({ x: 0, y: 0 });
 
     const [eventName, setEventName] = useState('');
+
 
     const total = peserta.length;
     const hadir = peserta.filter(p => p.hadir).length;
@@ -116,6 +118,19 @@ export const Dashboard = () => {
             window.removeEventListener('mouseup', handleMouseUp);
         };
     }, []);
+
+    useEffect(() => {
+        // Center stage horizontally, place near top (e.g., 60px below top)
+        setStagePos({
+            x: (dragZoneSize.width - 320) / 2, // 320 is the stage width
+            y: 60,
+        });
+        // Center arrow horizontally, place below stage (e.g., 40px gap)
+        setArrowPos({
+            x: (dragZoneSize.width - 40) / 2, // 100 is the arrow width
+            y: dragZoneSize.height / 2, // 500 is the arrow height
+        });
+    }, [dragZoneSize.width, dragZoneSize.height]);
 
     React.useEffect(() => {
         localStorage.setItem('peserta', JSON.stringify(peserta));
@@ -251,7 +266,7 @@ export const Dashboard = () => {
                     <p className='text-2xl'>{tidakHadir}</p>
                 </div>
             </div>
-            <div className='flex flex-col lg:flex-row gap-6'>
+            <div className='flex flex-col lg:flex-row flex-wrap gap-6'>
                 <div className='flex-1'>
                     <div className='mb-4 flex items-center gap-3 pb-3'>
                         <button onClick={handleTambahMeja} className='bg-blue-600 text-white mr-2 px-4 py-2 rounded hover:bg-blue-700'>
@@ -279,9 +294,69 @@ export const Dashboard = () => {
                             overflow: 'auto'
                         }}
                     >
-                        <div className='p-4 text-center'>
+                        <div className='pt-4 pb-2 text-center'>
+                            <h2 className='text-xl font-bold'><i>SEATING ARRANGEMENT</i></h2>
+                        </div>
+                        <div className='pb-4 text-center'>
                             <h2 className='text-xl font-bold'>{eventName}</h2>
                         </div>
+                        {/* Draggable Stage */}
+                        <Draggable
+                            position={stagePos}
+                            onStop={(e, data) => setStagePos({ x: data.x, y: data.y })}
+                            bounds="parent"
+                        >
+                            <div
+                                style={{
+                                    width: 320,
+                                    height: 60,
+                                    background: '#444',
+                                    color: 'white',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    borderRadius: 8,
+                                    fontWeight: 'bold',
+                                    fontSize: 20,
+                                    position: 'absolute',
+                                    zIndex: 20,
+                                    cursor: 'move',
+                                    boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
+                                }}
+                            >
+                                PANGGUNG
+                            </div>
+                        </Draggable>
+
+                        {/* Draggable Entrance Arrow */}
+                        <Draggable
+                            position={arrowPos}
+                            onStop={(e, data) => setArrowPos({ x: data.x, y: data.y })}
+                            bounds="parent"
+                        >
+                            <div
+                                style={{
+                                    width: 40,
+                                    height: 60,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    position: 'absolute',
+                                    zIndex: 20,
+                                    cursor: 'move',
+                                    background: 'transparent'
+                                }}
+                            >
+                                {/* Large Black Arrow with Long Body */}
+                                <svg width="100" height="300" viewBox="0 0 100 500">
+                                    {/* Arrow body */}
+                                    <rect x="35" y="60" width="30" height="370" fill="#111" />
+                                    {/* Arrow head */}
+                                    <polygon points="50,0 95,100 70,100 70,430 30,430 30,100 5,100" fill="#111" />
+                                </svg>
+                            </div>
+                        </Draggable>
+
                         {tableOrder.map((mejaIndex, visualIndex) => (
                             <Draggable
                                 key={mejaIndex}
@@ -394,9 +469,7 @@ export const Dashboard = () => {
                                                                         const pesertaIndex = fixatedPeserta.findIndex(
                                                                             p => p && p.nama === peserta.nama
                                                                         );
-                                                                        console.log("Peserta Index:", pesertaIndex);
-                                                                        console.log("Peserta:", peserta);
-                                                                        console.log("Fixated Peserta:", fixatedPeserta);
+
                                                                         if (pesertaIndex !== -1) {
                                                                             toggleHadir(pesertaIndex);
                                                                         }
@@ -440,12 +513,12 @@ export const Dashboard = () => {
 
                                         return (
                                             <div className="w-full mt-2 flex flex-row gap-2 justify-center">
-                                                <div className="flex-1 text-s bg-gray-50 rounded p-1 min-h-[24px]">
+                                                <div className="flex-1 text-xs bg-gray-50 rounded p-1 min-h-[24px]">
                                                     {col1.map((p, i) => (
                                                         <div key={i} className="truncate">{p.seat + 1}. {p.nama}</div>
                                                     ))}
                                                 </div>
-                                                <div className="flex-1 text-s bg-gray-50 rounded p-1 min-h-[24px]">
+                                                <div className="flex-1 text-xs bg-gray-50 rounded p-1 min-h-[24px]">
                                                     {col2.map((p, i) => (
                                                         <div key={i} className="truncate">{p.seat + 1}. {p.nama}</div>
                                                     ))}
@@ -494,7 +567,7 @@ export const Dashboard = () => {
                         </button>
                     </div>
                 </div>
-                <div className='w-full lg:w-80 flex-shrink-0'>
+                <div className='w-full flex-shrink-0'>
                     <div className="space-y-3" >
                         <span className="text-lg font-semibold">Nama Kegiatan: </span>
                     </div>
@@ -502,24 +575,33 @@ export const Dashboard = () => {
                         <textarea type='text' onChange={e => handleChangeEventName(e.target.value)} className="form-control flex-grow border rounded px-2 py-1 text-sm w-full"
                             style={{ resize: "vertical" }} />
                     </div>
+                </div>
+                <div className='w-full flex-shrink-0'>
                     <div className='flex justify-between items-center mb-3'>
                         <h2 className='text-lg font-semibold'>Daftar Peserta</h2>
                         <button onClick={handleTambahPeserta} className='bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600'>
                             + Tambah
                         </button>
                     </div>
-                    <div className="space-y-3">
-                        {peserta.map((p, index) => (
-                            <div key={index} className="flex items-center gap-2 p-2 border rounded bg-white shadow-sm">
-                                <input type='text' value={p.nama} onChange={e => handleGantiNama(index, e.target.value)} className='flex-grow border rounded px-2 py-1 text-sm' />
-                                <button onClick={() => toggleHadir(index)} className={`text-xs px-2 py-1 rounded ${p.hadir ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`}>
-                                    {p.hadir ? 'Hadir' : 'Tidak'}
-                                </button>
-                                <button onClick={() => {
-                                    const updated = [...peserta];
-                                    updated.splice(index, 1);
-                                    setPeserta(updated);
-                                }} title='Hapus Peserta' className='text-red-500 hover:text-red-700 ml-1 text-sm font-bold px-2'> &times; </button>
+                    <div className="flex gap-5 flex-wrap">
+                        {Array.from({ length: Math.ceil(peserta.length / 15) }).map((_, colIdx) => (
+                            <div key={colIdx} className="space-y-3 min-w-[220px]">
+                                {peserta.slice(colIdx * 15, (colIdx + 1) * 15).map((p, index) => {
+                                    const realIndex = colIdx * 15 + index;
+                                    return (
+                                        <div key={realIndex} className="flex items-center gap-2 p-2 border rounded bg-white shadow-sm">
+                                            <input type='text' value={p.nama} onChange={e => handleGantiNama(realIndex, e.target.value)} className='flex-grow border rounded px-2 py-1 text-sm min-w-[200px]' />
+                                            <button onClick={() => toggleHadir(realIndex)} className={`text-xs px-2 py-1 rounded ${p.hadir ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`}>
+                                                {p.hadir ? 'Hadir' : 'Tidak'}
+                                            </button>
+                                            <button onClick={() => {
+                                                const updated = [...peserta];
+                                                updated.splice(realIndex, 1);
+                                                setPeserta(updated);
+                                            }} title='Hapus Peserta' className='text-red-500 hover:text-red-700 ml-1 text-sm font-bold px-2'> &times; </button>
+                                        </div>
+                                    );
+                                })}
                             </div>
                         ))}
                     </div>
@@ -529,3 +611,14 @@ export const Dashboard = () => {
         // </DndProvider>
     );
 };
+
+export function DashboardWithFooter() {
+    return (
+        <>
+            <Dashboard />
+            <footer className="w-full text-center py-4 text-gray-500 text-xs mt-8">
+                &copy; Disinfolahtaau {new Date().getFullYear()} Seating Arrangement System. All rights reserved.
+            </footer>
+        </>
+    );
+}
