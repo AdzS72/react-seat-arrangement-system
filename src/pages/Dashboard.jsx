@@ -81,34 +81,41 @@ const Dashboard = () => {
         console.log(payload)
 
         try {
-            const response = await axios.post(
-                `${process.env.REACT_APP_BACKEND}/saveLayout`,
-                payload
-            );
-            if (response.data.message === "Layout berhasil disimpan") {
-                setSuccessAlert(true);
-                setTimeout(() => setSuccessAlert(false), 3000);
-                // Refresh layouts
-                axios.get(`${process.env.REACT_APP_BACKEND}/getLayout`)
-                    .then(res => setLayouts(res.data.layouts || []));
-            } else if (response.data.message === "duplicate") {
-                // Instead of error, update the layout
-                const updateRes = await axios.put(
-                    `${process.env.REACT_APP_BACKEND}/updateLayout}`,
+            // Check if layout name already exists
+            const existingLayout = layouts.find(l => l.name === layoutName);
+
+            let response;
+            if (existingLayout) {
+                // Update existing layout
+                response = await axios.post(
+                    `${process.env.REACT_APP_BACKEND}/updateLayout`,
                     payload
                 );
-                if (updateRes.data.message === "Layout berhasil diupdate") {
+                if (response.data.message === "Layout berhasil diupdate") {
                     setSuccessAlert(true);
                     setTimeout(() => setSuccessAlert(false), 3000);
-                    axios.get(`${process.env.REACT_APP_BACKEND}/getLayout`)
-                        .then(res => setLayouts(res.data.layouts || []));
+                    // Save last selected layout name for auto-select after reload
+                    localStorage.setItem('lastSelectedLayoutName', layoutName);
+                    setTimeout(() => window.location.reload(), 500);
                 } else {
                     setError("Gagal mengupdate layout");
                     setTimeout(() => setError(null), 3000);
                 }
             } else {
-                setError("Gagal menyimpan layout");
-                setTimeout(() => setError(null), 3000);
+                // Save new layout
+                response = await axios.post(
+                    `${process.env.REACT_APP_BACKEND}/saveLayout`,
+                    payload
+                );
+                if (response.data.message === "Layout berhasil disimpan") {
+                    setSuccessAlert(true);
+                    setTimeout(() => setSuccessAlert(false), 3000);
+                    localStorage.setItem('lastSelectedLayoutName', layoutName);
+                    setTimeout(() => window.location.reload(), 500);
+                } else {
+                    setError("Gagal menyimpan layout");
+                    setTimeout(() => setError(null), 3000);
+                }
             }
         } catch (error) {
             setError("Gagal menyimpan layout");
@@ -146,11 +153,28 @@ const Dashboard = () => {
                         if (layouts && layouts.length > 0) {
                             setOptions(
                                 layouts.map((layout, idx) => ({
-                                    value: layout.id || idx, // use layout.id if available, otherwise index
+                                    value: layout.id || idx,
                                     label: layout.name,
-                                    layoutData: layout, // keep the whole layout for easy access
+                                    layoutData: layout,
                                 }))
                             );
+                            // Auto-select last saved layout if exists
+                            const lastName = localStorage.getItem('lastSelectedLayoutName');
+                            if (lastName) {
+                                const found = layouts.find(l => l.name === lastName);
+                                if (found) {
+                                    const option = {
+                                        value: found.id || layouts.indexOf(found),
+                                        label: found.name,
+                                        layoutData: found,
+                                    };
+                                    setSelectedOption(option);
+                                    // Also set all layout states
+                                    handleSelectLayout(option);
+                                    // Remove from localStorage so it only auto-selects once
+                                    localStorage.removeItem('lastSelectedLayoutName');
+                                }
+                            }
                         }
                     } else {
                         console.log("Tidak berhasil mengambil postingan");
@@ -402,7 +426,7 @@ const Dashboard = () => {
                         <div className='pt-4 pb-2 text-center'>
                             <h2 className='text-xl font-bold'><i>SEATING ARRANGEMENT</i></h2>
                         </div>
-                        <div className='pb-4 text-center'>
+                        <div className='text-center'>
                             <h2 className='text-xl font-bold'>{eventName}</h2>
                         </div>
                         {/* Draggable Stage */}
@@ -666,7 +690,10 @@ const Dashboard = () => {
                         </div>
                     </div>
                     <div className='flex gap-3'>
-                        <div className="mt-6" style={{ minWidth: 220 }}>
+                        <div className="mt-6 mb-2" style={{ minWidth: 220 }}>
+                            <div className="mb-1 ms-1 font-normal text-sm text-gray-700">
+                                Pilih layout yang tersimpan pada database
+                            </div>
                             <Select
                                 options={options}
                                 value={selectedOption}
@@ -682,7 +709,10 @@ const Dashboard = () => {
                             />
                         </div>
                         {/* Input for new layout name */}
-                        <div className="mt-6">
+                        <div className="mt-6 mb-2">
+                            <div className="mb-1 ms-1 font-normal text-sm text-gray-700">
+                                Nama Layout
+                            </div>
                             <input
                                 type="text"
                                 value={layoutName}
@@ -692,7 +722,7 @@ const Dashboard = () => {
                                 style={{ maxWidth: 220 }}
                             />
                         </div>
-                        <div className='mt-6'>
+                        <div className='mt-12'>
                             <button
                                 onClick={handleSaveLayout}
                                 className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
@@ -700,28 +730,28 @@ const Dashboard = () => {
                                 <i className="bi bi-floppy-fill pr-3"></i>Simpan Layout
                             </button>
                         </div>
-                        <div className="mt-6">
+                        <div className="mt-12">
                             <button onClick={handlePrint} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
                                 <i className="bi bi-printer-fill pr-3"></i>Cetak Layout
                             </button>
                         </div>
                     </div>
                     {successAlert && (
-                        <div className="col col-auto">
+                        <div className="col col-auto mt-3">
                             <div className="alert alert-success" role="alert">
                                 Data Berhasil Disimpan!
                             </div>
                         </div>
                     )}
                     {error && (
-                        <div className="alert alert-danger" role="alert">
+                        <div className="alert alert-danger mt-3" role="alert">
                             {error}
                         </div>
                     )}
                 </div>
 
                 <div className='w-full flex-shrink-0'>
-                    <div className="space-y-3" >
+                    <div className="space-y-3 mb-3" >
                         <span className="text-lg font-semibold">Nama Kegiatan: </span>
                     </div>
                     <div className="space-y-3" >
