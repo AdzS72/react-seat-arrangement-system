@@ -123,6 +123,48 @@ const Dashboard = () => {
         }
     };
 
+    const handleDeleteLayout = async () => {
+        if (!selectedOption || !selectedOption.layoutData) {
+            setError("Pilih layout yang ingin dihapus.");
+            setTimeout(() => setError(null), 3000);
+            return;
+        }
+        if (!window.confirm(`Yakin ingin menghapus layout "${selectedOption.label}"?`)) return;
+        try {
+            const id = selectedOption.layoutData.id;
+            // If your backend expects an id, use it; otherwise, send the name
+            const response = await axios.post(
+                `${process.env.REACT_APP_BACKEND}/deleteLayout`,
+                { name: selectedOption.label }
+            );
+            if (response.data.message === "Layout berhasil dihapus") {
+                setSuccessAlert(true);
+                setTimeout(() => setSuccessAlert(false), 3000);
+                // Remove from local state
+                setLayouts(prev => prev.filter(l => (l.id || l.name) !== (id || selectedOption.label)));
+                setSelectedOption(null);
+                setLayoutName('');
+                setEventName('');
+                setMeja('');
+                setPeserta([]);
+                setFixatedPeserta([]);
+                setTableSeats([]);
+                setTablePositions([]);
+                setDragZoneSize({ width: 1800, height: 600 });
+                setStagePos({ x: 0, y: 0 });
+                setArrowPos({ x: 0, y: 0 });
+                // Refresh options
+                setOptions(prev => prev.filter(opt => opt.value !== selectedOption.value));
+            } else {
+                setError("Gagal menghapus layout");
+                setTimeout(() => setError(null), 3000);
+            }
+        } catch (error) {
+            setError("Gagal menghapus layout");
+            setTimeout(() => setError(null), 3000);
+        }
+    };
+
     const handleSelectLayout = (option) => {
         setSelectedOption(option);
         if (option && option.layoutData) {
@@ -731,6 +773,16 @@ const Dashboard = () => {
                             </button>
                         </div>
                         <div className="mt-12">
+                            <button
+                                onClick={handleDeleteLayout}
+                                className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
+                                disabled={!selectedOption}
+                                title="Hapus layout yang dipilih"
+                            >
+                                <i className="bi bi-trash-fill pr-3"></i>Hapus Layout
+                            </button>
+                        </div>
+                        <div className="mt-12">
                             <button onClick={handlePrint} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
                                 <i className="bi bi-printer-fill pr-3"></i>Cetak Layout
                             </button>
@@ -739,7 +791,7 @@ const Dashboard = () => {
                     {successAlert && (
                         <div className="col col-auto mt-3">
                             <div className="alert alert-success" role="alert">
-                                Data Berhasil Disimpan!
+                                {'Data Berhasil Disimpan!'}
                             </div>
                         </div>
                     )}
