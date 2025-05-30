@@ -7,9 +7,9 @@ import { useAuth } from "../hooks/useAuth";
 import logo_tni_au from "../images/Lambang_TNI_AU.png";
 
 
-const Dashboard = () => {
+const Viewer = () => {
     const navigate = useNavigate();
-    const { isAdmin } = useAuth();
+    const { isViewer } = useAuth();
 
     const data = [
         { nama: 'Peserta 1', hadir: true },
@@ -120,7 +120,7 @@ const Dashboard = () => {
                     token: token,
                 })
                 .then(function (response) {
-                    if (response.status == 200 && id == response.data[0].user_id && (isAdmin)) {
+                    if (response.status == 200 && id == response.data[0].user_id && (isViewer)) {
                         return;
                     } else {
                         navigate("/");
@@ -855,7 +855,7 @@ const Dashboard = () => {
     );
 };
 
-export function DashboardWithFooter() {
+export function ViewerWithFooter() {
     return (
         <>
             <header className="w-full flex items-center justify-between px-6 bg-blue-700 text-white shadow rounded-b-lg">
@@ -883,7 +883,7 @@ export function DashboardWithFooter() {
                     </button>
                 </div>
             </header>
-            <Dashboard />
+            <Viewer />
             <footer className="w-full text-center py-4 text-gray-500 text-xs mt-8">
                 &copy; Disinfolahtaau {new Date().getFullYear()} Seating Arrangement System. All rights reserved.
             </footer>

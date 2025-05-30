@@ -35,9 +35,9 @@ export const Login = () => {
                     if (response.data.role == "1") {
                         navigate("/dashboard");
                     }
-                    // if (response.data.role == "2") {
-                    //     navigate("/dstaflog");
-                    // }
+                    if (response.data.role == "2") {
+                        navigate("/viewer");
+                    }
                 }
             })
             .catch(async function (error) {
