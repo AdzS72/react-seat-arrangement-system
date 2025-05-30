@@ -1,9 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
 import Draggable from 'react-draggable';
 import axios from 'axios';
+import { useNavigate } from "react-router-dom";
 import Select from 'react-select';
+import { useAuth } from "../hooks/useAuth";
 
 const Dashboard = () => {
+    const navigate = useNavigate();
+    const { isAdmin } = useAuth();
 
     const data = [
         { nama: 'Peserta 1', hadir: true },
@@ -18,32 +22,187 @@ const Dashboard = () => {
     const [tableOrder, setTableOrder] = useState(Array.from({ length: meja }, (_, i) => i));
     const [tableSeats, setTableSeats] = useState('');
     const [selectedTables, setSelectedTables] = useState([]);
-    const dragZoneRef = useRef(null);
-    const isResizing = useRef(false);
     const [tablePositions, setTablePositions] = useState('');
     const [dragZoneSize, setDragZoneSize] = useState({ width: 1800, height: 600 });
     const [stagePos, setStagePos] = useState({ x: 0, y: 0 });
     const [arrowPos, setArrowPos] = useState({ x: 0, y: 0 });
-
     const [eventName, setEventName] = useState('');
     const [layoutName, setLayoutName] = useState('');
     const [layouts, setLayouts] = useState([]);
-
     const [options, setOptions] = useState([]);
     const [selectedOption, setSelectedOption] = useState(null);
-
-
     const [successAlert, setSuccessAlert] = useState(false);
     const [error, setError] = useState(null);
 
     const total = peserta.length;
     const hadir = peserta.filter(p => p.hadir).length;
     const tidakHadir = total - hadir;
+    const dragZoneRef = useRef(null);
+    const isResizing = useRef(false);
 
+    useEffect(() => {
+        // Center stage horizontally, place near top (e.g., 60px below top)
+        setStagePos({
+            x: (dragZoneSize.width - 320) / 2, // 320 is the stage width
+            y: 60,
+        });
+        // Center arrow horizontally, place below stage (e.g., 40px gap)
+        setArrowPos({
+            x: (dragZoneSize.width - 40) / 2, // 100 is the arrow width
+            y: dragZoneSize.height / 2, // 500 is the arrow height
+        });
+    }, [dragZoneSize.width, dragZoneSize.height]);
+
+    React.useEffect(() => {
+        setFixatedPeserta([...peserta]);
+        localStorage.setItem('peserta', JSON.stringify(peserta));
+        localStorage.setItem('fixatedPeserta', JSON.stringify(fixatedPeserta));
+    }, [peserta]);
+
+    React.useEffect(() => {
+        localStorage.setItem('tableSeats', JSON.stringify(tableSeats));
+    }, [tableSeats]);
+
+    React.useEffect(() => {
+        localStorage.setItem('tablePositions', JSON.stringify(tablePositions));
+    }, [tablePositions]);
+
+    React.useEffect(() => {
+        localStorage.setItem('dragZoneSize', JSON.stringify(dragZoneSize));
+    }, [dragZoneSize]);
+
+    React.useEffect(() => {
+        setTableOrder((prev) => {
+            if (meja > prev.length) {
+                // Add new tables at the end
+                return [...prev, ...Array.from({ length: meja - prev.length }, (_, i) => prev.length + i)];
+            } else if (meja < prev.length) {
+                // Remove tables from the end
+                return prev.slice(0, meja);
+            }
+            return prev;
+        });
+
+        setTablePositions((prev) => {
+            if (meja > prev.length) {
+                // Add new positions
+                return [...prev, ...Array.from({ length: meja - prev.length }, () => ({ x: 0, y: 0 }))];
+            } else if (meja < prev.length) {
+                // Remove positions
+                return prev.slice(0, meja);
+            }
+            return prev;
+        });
+
+        setTableSeats((prev) => {
+            if (meja > prev.length) {
+                // Add new tables with 6 seats
+                return [...prev, ...Array.from({ length: meja - prev.length }, () => 6)];
+            } else if (meja < prev.length) {
+                // Remove tables from the end
+                return prev.slice(0, meja);
+            }
+            return prev;
+        });
+
+        localStorage.setItem('meja', JSON.stringify(meja));
+
+    }, [meja]);
+
+    React.useEffect(() => {
+        const token = localStorage.getItem("token");
+        const id = localStorage.getItem("id");
+        function verifikasi(id, token) {
+            axios
+                .post(`${process.env.REACT_APP_BACKEND}/verify`, {
+                    token: token,
+                })
+                .then(function (response) {
+                    if (response.status == 200 && id == response.data[0].user_id && (isAdmin)) {
+                        return;
+                    } else {
+                        navigate("/");
+                    }
+                })
+                .catch(function (error) {
+                    navigate("/");
+                });
+        }
+
+        function getLayout() {
+            axios
+                .get(`${process.env.REACT_APP_BACKEND}/getLayout`)
+                .then(function (response) {
+                    if (response.status == 200) {
+                        // Convert peserta and fixated_peserta fields to array of objects
+                        const layouts = response.data;
+                        setLayouts(layouts);
+                        if (layouts && layouts.length > 0) {
+                            setOptions(
+                                layouts.map((layout, idx) => ({
+                                    value: layout.id || idx,
+                                    label: layout.name,
+                                    layoutData: layout,
+                                }))
+                            );
+                            // Auto-select last saved layout if exists
+                            const lastName = localStorage.getItem('lastSelectedLayoutName');
+                            if (lastName) {
+                                const found = layouts.find(l => l.name === lastName);
+                                if (found) {
+                                    const option = {
+                                        value: found.id || layouts.indexOf(found),
+                                        label: found.name,
+                                        layoutData: found,
+                                    };
+                                    setSelectedOption(option);
+                                    // Also set all layout states
+                                    handleSelectLayout(option);
+                                    // Remove from localStorage so it only auto-selects once
+                                    localStorage.removeItem('lastSelectedLayoutName');
+                                }
+                            }
+                        }
+                    } else {
+                        console.log("Tidak berhasil mengambil postingan");
+                        return;
+                    }
+                })
+                .catch(async function (error) {
+                    if (!error.response) {
+                        // network error
+                        error.errorStatus = "Error: Network Error";
+                    } else {
+                        error.errorStatus = error.response.data.message;
+                    }
+                });
+        }
+
+        const handleMouseMove = (e) => {
+            if (!isResizing.current) return;
+            const maxWidth = window.innerWidth - dragZoneRef.current.getBoundingClientRect().left - 50; // 32px for some margin
+            setDragZoneSize(prev => ({
+                width: Math.min(Math.max(600, e.clientX - dragZoneRef.current.getBoundingClientRect().left), maxWidth),
+                height: Math.max(400, e.clientY - dragZoneRef.current.getBoundingClientRect().top)
+            }));
+        };
+        const handleMouseUp = () => { isResizing.current = false; };
+        window.addEventListener('mousemove', handleMouseMove);
+        window.addEventListener('mouseup', handleMouseUp);
+
+        return () => {
+            verifikasi(id, token);
+            getLayout();
+            window.removeEventListener('mousemove', handleMouseMove);
+            window.removeEventListener('mouseup', handleMouseUp);
+
+        };
+    }, []);
 
     const handleTambahMeja = () => setMeja(prev => prev + 1);
     const handleKurangiMeja = () => setMeja(prev => (prev > 1 ? prev - 1 : 1));
     const handlePrint = () => window.print();
+
     const handleTambahPeserta = () => {
         setPeserta([...peserta, { nama: `Peserta ${peserta.length + 1}`, hadir: true }]);
         setFixatedPeserta([...fixatedPeserta, { nama: `Peserta ${fixatedPeserta.length + 1}`, hadir: true }]);
@@ -181,148 +340,6 @@ const Dashboard = () => {
             setArrowPos(layout.position_arrow || { x: 0, y: 0 });
         }
     };
-
-    React.useEffect(() => {
-        function getLayout() {
-            axios
-                .get(`${process.env.REACT_APP_BACKEND}/getLayout`)
-                .then(function (response) {
-                    if (response.status == 200) {
-                        // Convert peserta and fixated_peserta fields to array of objects
-                        const layouts = response.data;
-                        console.log('data layout', layouts);
-                        setLayouts(layouts);
-                        if (layouts && layouts.length > 0) {
-                            setOptions(
-                                layouts.map((layout, idx) => ({
-                                    value: layout.id || idx,
-                                    label: layout.name,
-                                    layoutData: layout,
-                                }))
-                            );
-                            // Auto-select last saved layout if exists
-                            const lastName = localStorage.getItem('lastSelectedLayoutName');
-                            if (lastName) {
-                                const found = layouts.find(l => l.name === lastName);
-                                if (found) {
-                                    const option = {
-                                        value: found.id || layouts.indexOf(found),
-                                        label: found.name,
-                                        layoutData: found,
-                                    };
-                                    setSelectedOption(option);
-                                    // Also set all layout states
-                                    handleSelectLayout(option);
-                                    // Remove from localStorage so it only auto-selects once
-                                    localStorage.removeItem('lastSelectedLayoutName');
-                                }
-                            }
-                        }
-                    } else {
-                        console.log("Tidak berhasil mengambil postingan");
-                        return;
-                    }
-                })
-                .catch(async function (error) {
-                    if (!error.response) {
-                        // network error
-                        error.errorStatus = "Error: Network Error";
-                    } else {
-                        error.errorStatus = error.response.data.message;
-                    }
-                });
-        }
-
-        return () => {
-            getLayout();
-
-        };
-    }, []);
-
-
-    React.useEffect(() => {
-        setFixatedPeserta([...peserta]);
-    }, [peserta]);
-
-    // Update positions when meja changes
-    React.useEffect(() => {
-        setTablePositions((prev) => {
-            if (meja > prev.length) {
-                // Add new positions
-                return [...prev, ...Array.from({ length: meja - prev.length }, () => ({ x: 0, y: 0 }))];
-            } else if (meja < prev.length) {
-                // Remove positions
-                return prev.slice(0, meja);
-            }
-            return prev;
-        });
-    }, [meja]);
-
-    // Update seat counts when meja changes
-    React.useEffect(() => {
-        setTableSeats((prev) => {
-            if (meja > prev.length) {
-                // Add new tables with 6 seats
-                return [...prev, ...Array.from({ length: meja - prev.length }, () => 6)];
-            } else if (meja < prev.length) {
-                // Remove tables from the end
-                return prev.slice(0, meja);
-            }
-            return prev;
-        });
-    }, [meja]);
-
-    React.useEffect(() => {
-        const handleMouseMove = (e) => {
-            if (!isResizing.current) return;
-            const maxWidth = window.innerWidth - dragZoneRef.current.getBoundingClientRect().left - 50; // 32px for some margin
-            setDragZoneSize(prev => ({
-                width: Math.min(Math.max(600, e.clientX - dragZoneRef.current.getBoundingClientRect().left), maxWidth),
-                height: Math.max(400, e.clientY - dragZoneRef.current.getBoundingClientRect().top)
-            }));
-        };
-        const handleMouseUp = () => { isResizing.current = false; };
-        window.addEventListener('mousemove', handleMouseMove);
-        window.addEventListener('mouseup', handleMouseUp);
-        return () => {
-            window.removeEventListener('mousemove', handleMouseMove);
-            window.removeEventListener('mouseup', handleMouseUp);
-        };
-    }, []);
-
-    useEffect(() => {
-        // Center stage horizontally, place near top (e.g., 60px below top)
-        setStagePos({
-            x: (dragZoneSize.width - 320) / 2, // 320 is the stage width
-            y: 60,
-        });
-        // Center arrow horizontally, place below stage (e.g., 40px gap)
-        setArrowPos({
-            x: (dragZoneSize.width - 40) / 2, // 100 is the arrow width
-            y: dragZoneSize.height / 2, // 500 is the arrow height
-        });
-    }, [dragZoneSize.width, dragZoneSize.height]);
-
-    React.useEffect(() => {
-        localStorage.setItem('peserta', JSON.stringify(peserta));
-    }, [peserta]);
-    React.useEffect(() => {
-        localStorage.setItem('fixatedPeserta', JSON.stringify(fixatedPeserta));
-    }, [fixatedPeserta]);
-    React.useEffect(() => {
-        localStorage.setItem('meja', JSON.stringify(meja));
-    }, [meja]);
-    React.useEffect(() => {
-        localStorage.setItem('tableSeats', JSON.stringify(tableSeats));
-    }, [tableSeats]);
-    React.useEffect(() => {
-        localStorage.setItem('tablePositions', JSON.stringify(tablePositions));
-    }, [tablePositions]);
-    React.useEffect(() => {
-        localStorage.setItem('dragZoneSize', JSON.stringify(dragZoneSize));
-    }, [dragZoneSize]);
-
-
     // Add seat to a table
     const handleAddSeat = (tableIdx) => {
         setTableSeats((prev) => {
@@ -407,18 +424,6 @@ const Dashboard = () => {
         );
     };
 
-    React.useEffect(() => {
-        setTableOrder((prev) => {
-            if (meja > prev.length) {
-                // Add new tables at the end
-                return [...prev, ...Array.from({ length: meja - prev.length }, (_, i) => prev.length + i)];
-            } else if (meja < prev.length) {
-                // Remove tables from the end
-                return prev.slice(0, meja);
-            }
-            return prev;
-        });
-    }, [meja]);
 
     return (
         // <DndProvider backend={HTML5Backend}>
