@@ -446,16 +446,76 @@ const Dashboard = () => {
             </div>
             <div className='flex flex-col lg:flex-row flex-wrap gap-6'>
                 <div className='flex-1'>
-                    <div className='mb-4 flex items-center gap-3 pb-3'>
-                        <button onClick={handleTambahMeja} className='bg-blue-600 text-white mr-2 px-4 py-2 rounded hover:bg-blue-700'>
-                            Tambah Meja
-                        </button>
-                        <button onClick={handleKurangiMeja} className='bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700'>
-                            Kurangi Meja
-                        </button>
-                        <span className='bg-gray-200 ml-2 text-gray-800 px-4 py-2 rounded border text-sm font-medium'>
-                            Total Meja: {meja}
-                        </span>
+                    <div className="flex w-full justify-between items-center flex-col md:flex-row gap-3">
+                        <div className=' flex items-center gap-3 py-3'>
+                            <button onClick={handleTambahMeja} className='no-print bg-blue-600 text-white mr-2 px-4 py-2 rounded hover:bg-blue-700'>
+                                Tambah Meja
+                            </button>
+                            <button onClick={handleKurangiMeja} className='no-print bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700'>
+                                Kurangi Meja
+                            </button>
+                            <span className='bg-gray-200 ml-2 text-gray-800 px-4 py-2 rounded border text-sm font-medium'>
+                                Total Meja: {meja}
+                            </span>
+                        </div>
+                        <div className='no-print mb-3 flex gap-3'>
+                            <div style={{ minWidth: 220 }}>
+                                <div className="mb-1 ms-1 font-normal text-sm text-gray-700">
+                                    Pilih layout yang tersimpan pada database
+                                </div>
+                                <Select
+                                    options={options}
+                                    value={selectedOption}
+                                    onChange={handleSelectLayout}
+                                    placeholder="Pilih layout"
+                                    isClearable
+                                    getOptionLabel={option => option.label}
+                                    getOptionValue={option => option.value}
+                                    styles={{
+                                        container: base => ({ ...base, minWidth: 220 }),
+                                        menu: base => ({ ...base, zIndex: 9999 }),
+                                    }}
+                                />
+                            </div>
+                            {/* Input for new layout name */}
+                            <div >
+                                <div className="mb-1 ms-1 font-normal text-sm text-gray-700">
+                                    Nama Layout
+                                </div>
+                                <input
+                                    type="text"
+                                    value={layoutName}
+                                    onChange={e => handleChangeLayoutName(e.target.value)}
+                                    className="form-control border rounded px-3 py-2 text-sm w-full"
+                                    placeholder="Masukkan nama layout"
+                                    style={{ maxWidth: 220 }}
+                                />
+                            </div>
+                            <div className='mt-6'>
+                                <button
+                                    onClick={handleSaveLayout}
+                                    className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+                                >
+                                    <i className="bi bi-floppy-fill pr-3"></i>Simpan Layout
+                                </button>
+                            </div>
+                            <div className="mt-6">
+                                <button
+                                    onClick={handleDeleteLayout}
+                                    className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
+                                    disabled={!selectedOption}
+                                    title="Hapus layout yang dipilih"
+                                >
+                                    <i className="bi bi-trash-fill pr-3"></i>Hapus Layout
+                                </button>
+                            </div>
+                            <div className="mt-6">
+                                <button onClick={handlePrint} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                                    <i className="bi bi-printer-fill pr-3"></i>Cetak Layout
+                                </button>
+                            </div>
+                        </div>
+
                     </div>
 
                     <div
@@ -548,7 +608,7 @@ const Dashboard = () => {
                                     onClick={e => handleSelectTable(mejaIndex, e)}
                                 >
                                     {/* Checkbox for selection */}
-                                    <div className="absolute left-2 top-2 z-20">
+                                    <div className="no-print absolute left-2 top-2 z-20">
                                         <input
                                             type="checkbox"
                                             checked={selectedTables.includes(mejaIndex)}
@@ -568,7 +628,7 @@ const Dashboard = () => {
                                     <div className="flex justify-center items-center gap-2 mb-1 mt-6">
                                         <button
                                             onClick={e => { e.stopPropagation(); handleRemoveSeat(mejaIndex); }}
-                                            className="bg-red-500 text-white rounded px-2 py-1 text-xs font-bold hover:bg-red-700"
+                                            className="no-print bg-red-500 text-white rounded px-2 py-1 text-xs font-bold hover:bg-red-700"
                                             title="Kurangi Kursi"
                                         >−</button>
                                         <span className="text-sm font-medium">
@@ -576,7 +636,7 @@ const Dashboard = () => {
                                         </span>
                                         <button
                                             onClick={e => { e.stopPropagation(); handleAddSeat(mejaIndex); }}
-                                            className="bg-green-500 text-white rounded px-2 py-1 text-xs font-bold hover:bg-green-700"
+                                            className="no-print bg-green-500 text-white rounded px-2 py-1 text-xs font-bold hover:bg-green-700"
                                             title="Tambah Kursi"
                                         >+</button>
                                     </div>
@@ -738,75 +798,7 @@ const Dashboard = () => {
                             </svg>
                         </div>
                     </div>
-                    <div className='flex gap-3'>
-                        <div className="mt-6 mb-2" style={{ minWidth: 220 }}>
-                            <div className="mb-1 ms-1 font-normal text-sm text-gray-700">
-                                Pilih layout yang tersimpan pada database
-                            </div>
-                            <Select
-                                options={options}
-                                value={selectedOption}
-                                onChange={handleSelectLayout}
-                                placeholder="Pilih layout"
-                                isClearable
-                                getOptionLabel={option => option.label}
-                                getOptionValue={option => option.value}
-                                styles={{
-                                    container: base => ({ ...base, minWidth: 220 }),
-                                    menu: base => ({ ...base, zIndex: 9999 }),
-                                }}
-                            />
-                        </div>
-                        {/* Input for new layout name */}
-                        <div className="mt-6 mb-2">
-                            <div className="mb-1 ms-1 font-normal text-sm text-gray-700">
-                                Nama Layout
-                            </div>
-                            <input
-                                type="text"
-                                value={layoutName}
-                                onChange={e => handleChangeLayoutName(e.target.value)}
-                                className="form-control border rounded px-3 py-2 text-sm w-full"
-                                placeholder="Masukkan nama layout"
-                                style={{ maxWidth: 220 }}
-                            />
-                        </div>
-                        <div className='mt-12'>
-                            <button
-                                onClick={handleSaveLayout}
-                                className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
-                            >
-                                <i className="bi bi-floppy-fill pr-3"></i>Simpan Layout
-                            </button>
-                        </div>
-                        <div className="mt-12">
-                            <button
-                                onClick={handleDeleteLayout}
-                                className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
-                                disabled={!selectedOption}
-                                title="Hapus layout yang dipilih"
-                            >
-                                <i className="bi bi-trash-fill pr-3"></i>Hapus Layout
-                            </button>
-                        </div>
-                        <div className="mt-12">
-                            <button onClick={handlePrint} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
-                                <i className="bi bi-printer-fill pr-3"></i>Cetak Layout
-                            </button>
-                        </div>
-                    </div>
-                    {successAlert && (
-                        <div className="col col-auto mt-3">
-                            <div className="alert alert-success" role="alert">
-                                {'Data Berhasil Disimpan!'}
-                            </div>
-                        </div>
-                    )}
-                    {error && (
-                        <div className="alert alert-danger mt-3" role="alert">
-                            {error}
-                        </div>
-                    )}
+
                 </div>
 
                 <div className='w-full flex-shrink-0'>
@@ -821,7 +813,7 @@ const Dashboard = () => {
                 <div className='w-full flex-shrink-0'>
                     <div className='flex justify-between items-center mb-3'>
                         <h2 className='text-lg font-semibold'>Daftar Peserta</h2>
-                        <button onClick={handleTambahPeserta} className='bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600'>
+                        <button onClick={handleTambahPeserta} className='no-print bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600'>
                             + Tambah
                         </button>
                     </div>
@@ -833,14 +825,24 @@ const Dashboard = () => {
                                     return (
                                         <div key={realIndex} className="flex items-center gap-2 p-2 border rounded bg-white shadow-sm">
                                             <input type='text' value={p.nama} onChange={e => handleGantiNama(realIndex, e.target.value)} className='flex-grow border rounded px-2 py-1 text-sm min-w-[200px]' />
-                                            <button onClick={() => toggleHadir(realIndex)} className={`text-xs px-2 py-1 rounded ${p.hadir ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`}>
+                                            <button onClick={() => toggleHadir(realIndex)} className={`text-xs px-2 py-1 rounded font-semibold
+                                ${p.hadir
+                                                    ? 'bg-green-100 text-green-700'
+                                                    : 'bg-red-100 text-red-700'
+                                                }`}
+                                                style={{
+                                                    minWidth: 60,
+                                                    textAlign: 'center',
+                                                    backgroundColor: p.hadir ? '#bbf7d0' : '#fecaca', // pastel green or pastel red
+                                                    color: p.hadir ? '#166534' : '#991b1b'
+                                                }}>
                                                 {p.hadir ? 'Hadir' : 'Tidak'}
                                             </button>
                                             <button onClick={() => {
                                                 const updated = [...peserta];
                                                 updated.splice(realIndex, 1);
                                                 setPeserta(updated);
-                                            }} title='Hapus Peserta' className='text-red-500 hover:text-red-700 ml-1 text-sm font-bold px-2'> &times; </button>
+                                            }} title='Hapus Peserta' className='no-print text-red-500 hover:text-red-700 ml-1 text-sm font-bold px-2'> &times; </button>
                                         </div>
                                     );
                                 })}
@@ -866,7 +868,7 @@ export function DashboardWithFooter() {
                     </a>
                     <span className="text-2xl font-semibold tracking-wide">Seating Arrangement System</span>
                 </div>
-                <div className="flex items-center gap-4">
+                <div className="no-print flex items-center gap-4">
                     <span className="text-lg font-normal">
                         Selamat datang, {localStorage.getItem('username') || 'User'}!
                     </span>
