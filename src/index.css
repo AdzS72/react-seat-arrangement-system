@@ -23,3 +23,12 @@ code {
     position: absolute;
 }
 
+@media print {
+  #print-area {
+    zoom: 0.7;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+}

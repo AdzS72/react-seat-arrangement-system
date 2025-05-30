@@ -6,7 +6,6 @@ import Select from 'react-select';
 import { useAuth } from "../hooks/useAuth";
 import logo_tni_au from "../images/Lambang_TNI_AU.png";
 
-
 const Dashboard = () => {
     const navigate = useNavigate();
     const { isAdmin } = useAuth();
@@ -869,7 +868,7 @@ export function DashboardWithFooter() {
                 </div>
                 <div className="flex items-center gap-4">
                     <span className="text-lg font-normal">
-                        Halo, {localStorage.getItem('username') || 'User'}!
+                        Selamat datang, {localStorage.getItem('username') || 'User'}!
                     </span>
                     <button
                         onClick={() => {
