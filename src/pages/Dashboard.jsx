@@ -1,123 +1,45 @@
 import React, { useState, useRef, useEffect } from 'react';
 import Draggable from 'react-draggable';
+import axios from 'axios';
+import { useNavigate } from "react-router-dom";
+import Select from 'react-select';
+import { useAuth } from "../hooks/useAuth";
+import logo_tni_au from "../images/Lambang_TNI_AU.png";
 
 const Dashboard = () => {
-    const getInitialPeserta = () => {
-        const saved = localStorage.getItem('peserta');
-        return saved ? JSON.parse(saved) : [
-            { nama: 'Peserta 1', hadir: true },
-            { nama: 'Peserta 2', hadir: true },
-            { nama: 'Peserta 3', hadir: true },
-            { nama: 'Peserta 4', hadir: true },
-        ];
-    };
-    const getInitialFixatedPeserta = () => {
-        const saved = localStorage.getItem('fixatedPeserta');
-        return saved ? JSON.parse(saved) : [
-            { nama: 'Peserta 1', hadir: true },
-            { nama: 'Peserta 2', hadir: true },
-            { nama: 'Peserta 3', hadir: true },
-            { nama: 'Peserta 4', hadir: true },
-        ];
-    };
-    const getInitialMeja = () => {
-        const saved = localStorage.getItem('meja');
-        return saved ? JSON.parse(saved) : 1;
-    };
-    const getInitialTableSeats = (meja) => {
-        const saved = localStorage.getItem('tableSeats');
-        return saved ? JSON.parse(saved) : Array.from({ length: meja }, () => 6);
-    };
-    const getInitialTablePositions = (meja) => {
-        const saved = localStorage.getItem('tablePositions');
-        return saved ? JSON.parse(saved) : Array.from({ length: meja }, () => ({ x: 0, y: 0 }));
-    };
-    const getInitialDragZoneSize = () => {
-        const saved = localStorage.getItem('dragZoneSize');
-        return saved ? JSON.parse(saved) : { width: 1200, height: 900 };
-    };
+    const navigate = useNavigate();
+    const { isAdmin } = useAuth();
 
-    const [meja, setMeja] = useState(getInitialMeja());
-    const [peserta, setPeserta] = useState(getInitialPeserta());
-    const [fixatedPeserta, setFixatedPeserta] = useState(getInitialFixatedPeserta());
+    const data = [
+        { nama: 'Peserta 1', hadir: true },
+        { nama: 'Peserta 2', hadir: true },
+        { nama: 'Peserta 3', hadir: true },
+        { nama: 'Peserta 4', hadir: true },
+    ];
+
+    const [meja, setMeja] = useState(0);
+    const [peserta, setPeserta] = useState(data);
+    const [fixatedPeserta, setFixatedPeserta] = useState('');
     const [tableOrder, setTableOrder] = useState(Array.from({ length: meja }, (_, i) => i));
-    const [tableSeats, setTableSeats] = useState(getInitialTableSeats(meja));
+    const [tableSeats, setTableSeats] = useState('');
     const [selectedTables, setSelectedTables] = useState([]);
-    const dragZoneRef = useRef(null);
-    const isResizing = useRef(false);
-    const [tablePositions, setTablePositions] = useState(getInitialTablePositions(meja));
-    const [dragZoneSize, setDragZoneSize] = useState(getInitialDragZoneSize());
+    const [tablePositions, setTablePositions] = useState('');
+    const [dragZoneSize, setDragZoneSize] = useState({ width: 1800, height: 600 });
     const [stagePos, setStagePos] = useState({ x: 0, y: 0 });
     const [arrowPos, setArrowPos] = useState({ x: 0, y: 0 });
-
     const [eventName, setEventName] = useState('');
-
+    const [layoutName, setLayoutName] = useState('');
+    const [layouts, setLayouts] = useState([]);
+    const [options, setOptions] = useState([]);
+    const [selectedOption, setSelectedOption] = useState(null);
+    const [successAlert, setSuccessAlert] = useState(false);
+    const [error, setError] = useState(null);
 
     const total = peserta.length;
     const hadir = peserta.filter(p => p.hadir).length;
     const tidakHadir = total - hadir;
-
-    const handleTambahMeja = () => setMeja(prev => prev + 1);
-    const handleKurangiMeja = () => setMeja(prev => (prev > 1 ? prev - 1 : 1));
-    const handlePrint = () => window.print();
-    const handleTambahPeserta = () => {
-        setPeserta([...peserta, { nama: `Peserta ${peserta.length + 1}`, hadir: true }]);
-        setFixatedPeserta([...fixatedPeserta, { nama: `Peserta ${fixatedPeserta.length + 1}`, hadir: true }]);
-    };
-
-    const handleChangeEventName = (text) => {
-        setEventName(text);
-        localStorage.setItem('eventName', text);
-    };
-
-    React.useEffect(() => {
-        setFixatedPeserta([...peserta]);
-    }, [peserta]);
-
-    // Update positions when meja changes
-    React.useEffect(() => {
-        setTablePositions((prev) => {
-            if (meja > prev.length) {
-                // Add new positions
-                return [...prev, ...Array.from({ length: meja - prev.length }, () => ({ x: 0, y: 0 }))];
-            } else if (meja < prev.length) {
-                // Remove positions
-                return prev.slice(0, meja);
-            }
-            return prev;
-        });
-    }, [meja]);
-
-    // Update seat counts when meja changes
-    React.useEffect(() => {
-        setTableSeats((prev) => {
-            if (meja > prev.length) {
-                // Add new tables with 6 seats
-                return [...prev, ...Array.from({ length: meja - prev.length }, () => 6)];
-            } else if (meja < prev.length) {
-                // Remove tables from the end
-                return prev.slice(0, meja);
-            }
-            return prev;
-        });
-    }, [meja]);
-
-    React.useEffect(() => {
-        const handleMouseMove = (e) => {
-            if (!isResizing.current) return;
-            setDragZoneSize(prev => ({
-                width: Math.max(600, e.clientX - dragZoneRef.current.getBoundingClientRect().left),
-                height: Math.max(400, e.clientY - dragZoneRef.current.getBoundingClientRect().top)
-            }));
-        };
-        const handleMouseUp = () => { isResizing.current = false; };
-        window.addEventListener('mousemove', handleMouseMove);
-        window.addEventListener('mouseup', handleMouseUp);
-        return () => {
-            window.removeEventListener('mousemove', handleMouseMove);
-            window.removeEventListener('mouseup', handleMouseUp);
-        };
-    }, []);
+    const dragZoneRef = useRef(null);
+    const isResizing = useRef(false);
 
     useEffect(() => {
         // Center stage horizontally, place near top (e.g., 60px below top)
@@ -133,24 +55,169 @@ const Dashboard = () => {
     }, [dragZoneSize.width, dragZoneSize.height]);
 
     React.useEffect(() => {
+        setFixatedPeserta([...peserta]);
         localStorage.setItem('peserta', JSON.stringify(peserta));
-    }, [peserta]);
-    React.useEffect(() => {
         localStorage.setItem('fixatedPeserta', JSON.stringify(fixatedPeserta));
-    }, [fixatedPeserta]);
-    React.useEffect(() => {
-        localStorage.setItem('meja', JSON.stringify(meja));
-    }, [meja]);
+    }, [peserta]);
+
     React.useEffect(() => {
         localStorage.setItem('tableSeats', JSON.stringify(tableSeats));
     }, [tableSeats]);
+
     React.useEffect(() => {
         localStorage.setItem('tablePositions', JSON.stringify(tablePositions));
     }, [tablePositions]);
+
     React.useEffect(() => {
         localStorage.setItem('dragZoneSize', JSON.stringify(dragZoneSize));
     }, [dragZoneSize]);
 
+    React.useEffect(() => {
+        setTableOrder((prev) => {
+            if (meja > prev.length) {
+                // Add new tables at the end
+                return [...prev, ...Array.from({ length: meja - prev.length }, (_, i) => prev.length + i)];
+            } else if (meja < prev.length) {
+                // Remove tables from the end
+                return prev.slice(0, meja);
+            }
+            return prev;
+        });
+
+        setTablePositions((prev) => {
+            if (meja > prev.length) {
+                // Add new positions
+                return [...prev, ...Array.from({ length: meja - prev.length }, () => ({ x: 0, y: 0 }))];
+            } else if (meja < prev.length) {
+                // Remove positions
+                return prev.slice(0, meja);
+            }
+            return prev;
+        });
+
+        setTableSeats((prev) => {
+            if (meja > prev.length) {
+                // Add new tables with 6 seats
+                return [...prev, ...Array.from({ length: meja - prev.length }, () => 6)];
+            } else if (meja < prev.length) {
+                // Remove tables from the end
+                return prev.slice(0, meja);
+            }
+            return prev;
+        });
+
+        localStorage.setItem('meja', JSON.stringify(meja));
+
+    }, [meja]);
+
+    React.useEffect(() => {
+        const token = localStorage.getItem("token");
+        const id = localStorage.getItem("id");
+        function verifikasi(id, token) {
+            axios
+                .post(`${process.env.REACT_APP_BACKEND}/api/verify`, {
+                    token: token,
+                })
+                .then(function (response) {
+                    if (response.status == 200 && id == response.data[0].user_id && (isAdmin)) {
+                        return;
+                    } else {
+                        navigate("/");
+                    }
+                })
+                .catch(function (error) {
+                    navigate("/");
+                });
+        }
+
+        function getLayout() {
+            axios
+                .get(`${process.env.REACT_APP_BACKEND}/api/getLayout`)
+                .then(function (response) {
+                    if (response.status == 200) {
+                        // Convert peserta and fixated_peserta fields to array of objects
+                        const layouts = response.data;
+                        setLayouts(layouts);
+                        console.log(response.data, "Layouts fetched:", layouts);
+                        if (layouts && layouts.length > 0) {
+                            setOptions(
+                                layouts.map((layout, idx) => ({
+                                    value: layout.id || idx,
+                                    label: layout.name,
+                                    layoutData: layout,
+                                }))
+                            );
+                            // Auto-select last saved layout if exists
+                            const lastName = localStorage.getItem('lastSelectedLayoutName');
+                            if (lastName) {
+                                const found = layouts.find(l => l.name === lastName);
+                                if (found) {
+                                    const option = {
+                                        value: found.id || layouts.indexOf(found),
+                                        label: found.name,
+                                        layoutData: found,
+                                    };
+                                    setSelectedOption(option);
+                                    // Also set all layout states
+                                    handleSelectLayout(option);
+                                    // Remove from localStorage so it only auto-selects once
+                                    localStorage.removeItem('lastSelectedLayoutName');
+                                }
+                            }
+                        }
+                    } else {
+                        return;
+                    }
+                })
+                .catch(async function (error) {
+                    if (!error.response) {
+                        // network error
+                        error.errorStatus = "Error: Network Error";
+                    } else {
+                        error.errorStatus = error.response.data.message;
+                    }
+                });
+        }
+
+        const handleMouseMove = (e) => {
+            if (!isResizing.current) return;
+            const maxWidth = window.innerWidth - dragZoneRef.current.getBoundingClientRect().left - 50; // 32px for some margin
+            setDragZoneSize(prev => ({
+                width: Math.min(Math.max(600, e.clientX - dragZoneRef.current.getBoundingClientRect().left), maxWidth),
+                height: Math.max(400, e.clientY - dragZoneRef.current.getBoundingClientRect().top)
+            }));
+        };
+        const handleMouseUp = () => { isResizing.current = false; };
+        window.addEventListener('mousemove', handleMouseMove);
+        window.addEventListener('mouseup', handleMouseUp);
+
+        verifikasi(id, token);
+        getLayout();
+
+        return () => {
+            window.removeEventListener('mousemove', handleMouseMove);
+            window.removeEventListener('mouseup', handleMouseUp);
+
+        };
+    }, []);
+
+    const handleTambahMeja = () => setMeja(prev => prev + 1);
+    const handleKurangiMeja = () => setMeja(prev => (prev > 1 ? prev - 1 : 1));
+    const handlePrint = () => window.print();
+
+    const handleTambahPeserta = () => {
+        setPeserta([...peserta, { nama: `Peserta ${peserta.length + 1}`, hadir: true }]);
+        setFixatedPeserta([...fixatedPeserta, { nama: `Peserta ${fixatedPeserta.length + 1}`, hadir: true }]);
+    };
+
+    const handleChangeEventName = (text) => {
+        setEventName(text);
+        localStorage.setItem('eventName', text);
+    };
+
+    const handleChangeLayoutName = (text) => {
+        setLayoutName(text);
+    };
 
     // Add seat to a table
     const handleAddSeat = (tableIdx) => {
@@ -236,18 +303,127 @@ const Dashboard = () => {
         );
     };
 
-    React.useEffect(() => {
-        setTableOrder((prev) => {
-            if (meja > prev.length) {
-                // Add new tables at the end
-                return [...prev, ...Array.from({ length: meja - prev.length }, (_, i) => prev.length + i)];
-            } else if (meja < prev.length) {
-                // Remove tables from the end
-                return prev.slice(0, meja);
+    const handleSaveLayout = async (event) => {
+        event.preventDefault();
+        if (!layoutName) {
+            setError("Nama layout tidak boleh kosong");
+            setTimeout(() => setError(null), 3000);
+            return;
+        }
+        const payload = {
+            name: layoutName,
+            event_name: eventName,
+            table: meja,
+            peserta: peserta,
+            fixated_peserta: fixatedPeserta,
+            seat: tableSeats,
+            position_table: tablePositions,
+            dragzone_size: dragZoneSize,
+            position_stage: stagePos,
+            position_arrow: arrowPos,
+        };
+        try {
+            // Check if layout name already exists
+            const existingLayout = layouts.find(l => l.name === layoutName);
+
+            let response;
+            if (existingLayout) {
+                // Update existing layout
+                response = await axios.post(
+                    `${process.env.REACT_APP_BACKEND}/api/updateLayout`,
+                    payload
+                );
+                if (response.data.message === "Layout berhasil diupdate") {
+                    setSuccessAlert(true);
+                    setTimeout(() => setSuccessAlert(false), 3000);
+                    // Save last selected layout name for auto-select after reload
+                    localStorage.setItem('lastSelectedLayoutName', layoutName);
+                    setTimeout(() => window.location.reload(), 500);
+                } else {
+                    setError("Gagal mengupdate layout");
+                    setTimeout(() => setError(null), 3000);
+                }
+            } else {
+                // Save new layout
+                response = await axios.post(
+                    `${process.env.REACT_APP_BACKEND}/api/saveLayout`,
+                    payload
+                );
+                if (response.data.message === "Layout berhasil disimpan") {
+                    setSuccessAlert(true);
+                    setTimeout(() => setSuccessAlert(false), 3000);
+                    localStorage.setItem('lastSelectedLayoutName', layoutName);
+                    setTimeout(() => window.location.reload(), 500);
+                } else {
+                    setError("Gagal menyimpan layout");
+                    setTimeout(() => setError(null), 3000);
+                }
             }
-            return prev;
-        });
-    }, [meja]);
+        } catch (error) {
+            setError("Gagal menyimpan layout");
+            setTimeout(() => setError(null), 3000);
+        }
+    };
+
+    const handleDeleteLayout = async () => {
+        if (!selectedOption || !selectedOption.layoutData) {
+            setError("Pilih layout yang ingin dihapus.");
+            setTimeout(() => setError(null), 3000);
+            return;
+        }
+        if (!window.confirm(`Yakin ingin menghapus layout "${selectedOption.label}"?`)) return;
+        try {
+            const id = selectedOption.layoutData.id;
+            // If your backend expects an id, use it; otherwise, send the name
+            const response = await axios.post(
+                `${process.env.REACT_APP_BACKEND}/api/deleteLayout`,
+                { name: selectedOption.label }
+            );
+            if (response.data.message === "Layout berhasil dihapus") {
+                setSuccessAlert(true);
+                setTimeout(() => setSuccessAlert(false), 3000);
+                // Remove from local state
+                setLayouts(prev => prev.filter(l => (l.id || l.name) !== (id || selectedOption.label)));
+                setSelectedOption(null);
+                setLayoutName('');
+                setEventName('');
+                setMeja('');
+                setPeserta([]);
+                setFixatedPeserta([]);
+                setTableSeats([]);
+                setTablePositions([]);
+                setDragZoneSize({ width: 1800, height: 600 });
+                setStagePos({ x: 0, y: 0 });
+                setArrowPos({ x: 0, y: 0 });
+                // Refresh options
+                setOptions(prev => prev.filter(opt => opt.value !== selectedOption.value));
+            } else {
+                setError("Gagal menghapus layout");
+                setTimeout(() => setError(null), 3000);
+            }
+        } catch (error) {
+            setError("Gagal menghapus layout");
+            setTimeout(() => setError(null), 3000);
+        }
+    };
+
+    const handleSelectLayout = (option) => {
+        setSelectedOption(option);
+        if (option && option.layoutData) {
+            const layout = option.layoutData;
+            setLayoutName(layout.name || '');
+            setEventName(layout.event_name || '');
+            setMeja(Number(layout.table) || 0);
+            setPeserta(layout.peserta || []);
+            setFixatedPeserta(layout.fixated_peserta || []);
+            setTableSeats(layout.seat || []);
+            setTablePositions(layout.position_table || []);
+            setDragZoneSize(layout.dragzone_size || { width: 1800, height: 600 });
+            setStagePos(layout.position_stage || { x: 0, y: 0 });
+            setArrowPos(layout.position_arrow || { x: 0, y: 0 });
+        }
+    };
+
 
     return (
         // <DndProvider backend={HTML5Backend}>
@@ -268,16 +444,88 @@ const Dashboard = () => {
             </div>
             <div className='flex flex-col lg:flex-row flex-wrap gap-6'>
                 <div className='flex-1'>
-                    <div className='mb-4 flex items-center gap-3 pb-3'>
-                        <button onClick={handleTambahMeja} className='bg-blue-600 text-white mr-2 px-4 py-2 rounded hover:bg-blue-700'>
-                            Tambah Meja
-                        </button>
-                        <button onClick={handleKurangiMeja} className='bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700'>
-                            Kurangi Meja
-                        </button>
-                        <span className='bg-gray-200 ml-2 text-gray-800 px-4 py-2 rounded border text-sm font-medium'>
-                            Total Meja: {meja}
-                        </span>
+                    <div className="flex w-full justify-between items-center flex-col md:flex-row gap-3">
+                        <div className=' flex items-center gap-3 py-3'>
+                            <button onClick={handleTambahMeja} className='no-print bg-blue-600 text-white mr-2 px-4 py-2 rounded hover:bg-blue-700'>
+                                Tambah Meja
+                            </button>
+                            <button onClick={handleKurangiMeja} className='no-print bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700'>
+                                Kurangi Meja
+                            </button>
+                            <span className='bg-gray-200 ml-2 text-gray-800 px-4 py-2 rounded border text-sm font-medium'>
+                                Total Meja: {meja}
+                            </span>
+                        </div>
+                        <div className='no-print flex gap-3'>
+                            <div className='mt-6 flex-col md:flex-row font-normal text-sm'>
+                                {successAlert && (
+                                    <div class="alert alert-success" role="alert">
+                                        Data Berhasil Disimpan!
+                                    </div>
+                                )}
+                                {error && (
+                                    <div class="alert alert-danger" role="alert">
+                                        {error}
+                                    </div>
+                                )}
+                            </div>
+
+                            <div style={{ minWidth: 220 }}>
+                                <div className="mb-1 ms-1 font-normal text-sm text-gray-700">
+                                    Pilih layout yang tersimpan pada database
+                                </div>
+                                <Select
+                                    options={options}
+                                    value={selectedOption}
+                                    onChange={handleSelectLayout}
+                                    placeholder="Pilih layout"
+                                    isClearable
+                                    getOptionLabel={option => option.label}
+                                    getOptionValue={option => option.value}
+                                    styles={{
+                                        container: base => ({ ...base, minWidth: 220 }),
+                                        menu: base => ({ ...base, zIndex: 9999 }),
+                                    }}
+                                />
+                            </div>
+                            {/* Input for new layout name */}
+                            <div >
+                                <div className="mb-1 ms-1 font-normal text-sm text-gray-700">
+                                    Nama Layout
+                                </div>
+                                <input
+                                    type="text"
+                                    value={layoutName}
+                                    onChange={e => handleChangeLayoutName(e.target.value)}
+                                    className="form-control border rounded px-3 py-2 text-sm w-full"
+                                    placeholder="Masukkan nama layout"
+                                    style={{ maxWidth: 220 }}
+                                />
+                            </div>
+                            <div className='mt-6'>
+                                <button
+                                    onClick={handleSaveLayout}
+                                    className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+                                >
+                                    <i className="bi bi-floppy-fill pr-3"></i>Simpan Layout
+                                </button>
+                            </div>
+                            <div className="mt-6">
+                                <button
+                                    onClick={handleDeleteLayout}
+                                    className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
+                                    disabled={!selectedOption}
+                                >
+                                    <i className="bi bi-trash-fill pr-3"></i>Hapus Layout
+                                </button>
+                            </div>
+                            <div className="mt-6">
+                                <button onClick={handlePrint} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                                    <i className="bi bi-printer-fill pr-3"></i>Cetak Layout
+                                </button>
+                            </div>
+                        </div>
+
                     </div>
 
                     <div
@@ -297,7 +545,7 @@ const Dashboard = () => {
                         <div className='pt-4 pb-2 text-center'>
                             <h2 className='text-xl font-bold'><i>SEATING ARRANGEMENT</i></h2>
                         </div>
-                        <div className='pb-4 text-center'>
+                        <div className='text-center'>
                             <h2 className='text-xl font-bold'>{eventName}</h2>
                         </div>
                         {/* Draggable Stage */}
@@ -370,7 +618,7 @@ const Dashboard = () => {
                                     onClick={e => handleSelectTable(mejaIndex, e)}
                                 >
                                     {/* Checkbox for selection */}
-                                    <div className="absolute left-2 top-2 z-20">
+                                    <div className="no-print absolute left-2 top-2 z-20">
                                         <input
                                             type="checkbox"
                                             checked={selectedTables.includes(mejaIndex)}
@@ -390,7 +638,7 @@ const Dashboard = () => {
                                     <div className="flex justify-center items-center gap-2 mb-1 mt-6">
                                         <button
                                             onClick={e => { e.stopPropagation(); handleRemoveSeat(mejaIndex); }}
-                                            className="bg-red-500 text-white rounded px-2 py-1 text-xs font-bold hover:bg-red-700"
+                                            className="no-print bg-red-500 text-white rounded px-2 py-1 text-xs font-bold hover:bg-red-700"
                                             title="Kurangi Kursi"
                                         >−</button>
                                         <span className="text-sm font-medium">
@@ -398,7 +646,7 @@ const Dashboard = () => {
                                         </span>
                                         <button
                                             onClick={e => { e.stopPropagation(); handleAddSeat(mejaIndex); }}
-                                            className="bg-green-500 text-white rounded px-2 py-1 text-xs font-bold hover:bg-green-700"
+                                            className="no-print bg-green-500 text-white rounded px-2 py-1 text-xs font-bold hover:bg-green-700"
                                             title="Tambah Kursi"
                                         >+</button>
                                     </div>
@@ -561,25 +809,21 @@ const Dashboard = () => {
                         </div>
                     </div>
 
-                    <div className="mt-6">
-                        <button onClick={handlePrint} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
-                            Cetak Layout
-                        </button>
-                    </div>
                 </div>
+
                 <div className='w-full flex-shrink-0'>
-                    <div className="space-y-3" >
+                    <div className="space-y-3 mb-3" >
                         <span className="text-lg font-semibold">Nama Kegiatan: </span>
                     </div>
                     <div className="space-y-3" >
-                        <textarea type='text' onChange={e => handleChangeEventName(e.target.value)} className="form-control flex-grow border rounded px-2 py-1 text-sm w-full"
+                        <textarea type='text' value={eventName} onChange={e => handleChangeEventName(e.target.value)} className="form-control flex-grow border rounded px-2 py-1 text-sm w-full"
                             style={{ resize: "vertical" }} />
                     </div>
                 </div>
-                <div className='w-full flex-shrink-0'>
+                <div className='w-full flex-shrink-0' style={{ pageBreakBefore: 'always' }}>
                     <div className='flex justify-between items-center mb-3'>
                         <h2 className='text-lg font-semibold'>Daftar Peserta</h2>
-                        <button onClick={handleTambahPeserta} className='bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600'>
+                        <button onClick={handleTambahPeserta} className='no-print bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600'>
                             + Tambah
                         </button>
                     </div>
@@ -591,14 +835,24 @@ const Dashboard = () => {
                                     return (
                                         <div key={realIndex} className="flex items-center gap-2 p-2 border rounded bg-white shadow-sm">
                                             <input type='text' value={p.nama} onChange={e => handleGantiNama(realIndex, e.target.value)} className='flex-grow border rounded px-2 py-1 text-sm min-w-[200px]' />
-                                            <button onClick={() => toggleHadir(realIndex)} className={`text-xs px-2 py-1 rounded ${p.hadir ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`}>
+                                            <button onClick={() => toggleHadir(realIndex)} className={`text-xs px-2 py-1 rounded font-semibold
+                                ${p.hadir
+                                                    ? 'bg-green-100 text-green-700'
+                                                    : 'bg-red-100 text-red-700'
+                                                }`}
+                                                style={{
+                                                    minWidth: 60,
+                                                    textAlign: 'center',
+                                                    backgroundColor: p.hadir ? '#bbf7d0' : '#fecaca', // pastel green or pastel red
+                                                    color: p.hadir ? '#166534' : '#991b1b'
+                                                }}>
                                                 {p.hadir ? 'Hadir' : 'Tidak'}
                                             </button>
                                             <button onClick={() => {
                                                 const updated = [...peserta];
                                                 updated.splice(realIndex, 1);
                                                 setPeserta(updated);
-                                            }} title='Hapus Peserta' className='text-red-500 hover:text-red-700 ml-1 text-sm font-bold px-2'> &times; </button>
+                                            }} title='Hapus Peserta' className='no-print text-red-500 hover:text-red-700 ml-1 text-sm font-bold px-2'> &times; </button>
                                         </div>
                                     );
                                 })}
@@ -615,6 +869,31 @@ const Dashboard = () => {
 export function DashboardWithFooter() {
     return (
         <>
+            <header className="w-full flex items-center justify-between px-6 bg-blue-700 text-white shadow rounded-b-lg">
+                <div className="flex items-center gap-3">
+                    {/* Icon */}
+                    <a href="#" class="d-flex pt-4 justify-content-center mb-4">
+                        <img src={logo_tni_au} alt="" width="50"></img>
+                        {/* <img src={logo_kpl} alt="" width="100"></img> */}
+                    </a>
+                    <span className="text-2xl font-semibold tracking-wide">Seating Arrangement System</span>
+                </div>
+                <div className="no-print flex items-center gap-4">
+                    <span className="text-lg font-normal">
+                        Selamat datang, {localStorage.getItem('username') || 'User'}!
+                    </span>
+                    <button
+                        onClick={() => {
+                            localStorage.clear();
+                            window.location.href = "/";
+                        }}
+
+                        className="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded font-normal transition"
+                    >
+                        Logout
+                    </button>
+                </div>
+            </header>
             <Dashboard />
             <footer className="w-full text-center py-4 text-gray-500 text-xs mt-8">
                 &copy; Disinfolahtaau {new Date().getFullYear()} Seating Arrangement System. All rights reserved.
