@@ -17,7 +17,7 @@ const Dashboard = () => {
         { nama: 'Peserta 4', hadir: true },
     ];
 
-    const [meja, setMeja] = useState('');
+    const [meja, setMeja] = useState(0);
     const [peserta, setPeserta] = useState(data);
     const [fixatedPeserta, setFixatedPeserta] = useState('');
     const [tableOrder, setTableOrder] = useState(Array.from({ length: meja }, (_, i) => i));
@@ -115,7 +115,7 @@ const Dashboard = () => {
         const id = localStorage.getItem("id");
         function verifikasi(id, token) {
             axios
-                .post(`${process.env.REACT_APP_BACKEND}/verify`, {
+                .post(`${process.env.REACT_APP_BACKEND}/api/verify`, {
                     token: token,
                 })
                 .then(function (response) {
@@ -132,12 +132,13 @@ const Dashboard = () => {
 
         function getLayout() {
             axios
-                .get(`${process.env.REACT_APP_BACKEND}/getLayout`)
+                .get(`${process.env.REACT_APP_BACKEND}/api/getLayout`)
                 .then(function (response) {
                     if (response.status == 200) {
                         // Convert peserta and fixated_peserta fields to array of objects
                         const layouts = response.data;
                         setLayouts(layouts);
+                        console.log(response.data, "Layouts fetched:", layouts);
                         if (layouts && layouts.length > 0) {
                             setOptions(
                                 layouts.map((layout, idx) => ({
@@ -165,7 +166,6 @@ const Dashboard = () => {
                             }
                         }
                     } else {
-                        console.log("Tidak berhasil mengambil postingan");
                         return;
                     }
                 })
@@ -191,9 +191,10 @@ const Dashboard = () => {
         window.addEventListener('mousemove', handleMouseMove);
         window.addEventListener('mouseup', handleMouseUp);
 
+        verifikasi(id, token);
+        getLayout();
+
         return () => {
-            verifikasi(id, token);
-            getLayout();
             window.removeEventListener('mousemove', handleMouseMove);
             window.removeEventListener('mouseup', handleMouseUp);
 
@@ -321,9 +322,6 @@ const Dashboard = () => {
             position_stage: stagePos,
             position_arrow: arrowPos,
         };
-
-        console.log(payload)
-
         try {
             // Check if layout name already exists
             const existingLayout = layouts.find(l => l.name === layoutName);
@@ -332,7 +330,7 @@ const Dashboard = () => {
             if (existingLayout) {
                 // Update existing layout
                 response = await axios.post(
-                    `${process.env.REACT_APP_BACKEND}/updateLayout`,
+                    `${process.env.REACT_APP_BACKEND}/api/updateLayout`,
                     payload
                 );
                 if (response.data.message === "Layout berhasil diupdate") {
@@ -348,7 +346,7 @@ const Dashboard = () => {
             } else {
                 // Save new layout
                 response = await axios.post(
-                    `${process.env.REACT_APP_BACKEND}/saveLayout`,
+                    `${process.env.REACT_APP_BACKEND}/api/saveLayout`,
                     payload
                 );
                 if (response.data.message === "Layout berhasil disimpan") {
@@ -378,7 +376,7 @@ const Dashboard = () => {
             const id = selectedOption.layoutData.id;
             // If your backend expects an id, use it; otherwise, send the name
             const response = await axios.post(
-                `${process.env.REACT_APP_BACKEND}/deleteLayout`,
+                `${process.env.REACT_APP_BACKEND}/api/deleteLayout`,
                 { name: selectedOption.label }
             );
             if (response.data.message === "Layout berhasil dihapus") {
@@ -458,7 +456,20 @@ const Dashboard = () => {
                                 Total Meja: {meja}
                             </span>
                         </div>
-                        <div className='no-print mb-3 flex gap-3'>
+                        <div className='no-print flex gap-3'>
+                            <div className='mt-6 flex-col md:flex-row font-normal text-sm'>
+                                {successAlert && (
+                                    <div class="alert alert-success" role="alert">
+                                        Data Berhasil Disimpan!
+                                    </div>
+                                )}
+                                {error && (
+                                    <div class="alert alert-danger" role="alert">
+                                        {error}
+                                    </div>
+                                )}
+                            </div>
+
                             <div style={{ minWidth: 220 }}>
                                 <div className="mb-1 ms-1 font-normal text-sm text-gray-700">
                                     Pilih layout yang tersimpan pada database
@@ -504,7 +515,6 @@ const Dashboard = () => {
                                     onClick={handleDeleteLayout}
                                     className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
                                     disabled={!selectedOption}
-                                    title="Hapus layout yang dipilih"
                                 >
                                     <i className="bi bi-trash-fill pr-3"></i>Hapus Layout
                                 </button>
@@ -810,7 +820,7 @@ const Dashboard = () => {
                             style={{ resize: "vertical" }} />
                     </div>
                 </div>
-                <div className='w-full flex-shrink-0'>
+                <div className='w-full flex-shrink-0' style={{ pageBreakBefore: 'always' }}>
                     <div className='flex justify-between items-center mb-3'>
                         <h2 className='text-lg font-semibold'>Daftar Peserta</h2>
                         <button onClick={handleTambahPeserta} className='no-print bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600'>

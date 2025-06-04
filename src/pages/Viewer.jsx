@@ -22,7 +22,6 @@ const Viewer = () => {
     const [fixatedPeserta, setFixatedPeserta] = useState('');
     const [tableOrder, setTableOrder] = useState(Array.from({ length: meja }, (_, i) => i));
     const [tableSeats, setTableSeats] = useState('');
-    const [selectedTables, setSelectedTables] = useState([]);
     const [tablePositions, setTablePositions] = useState('');
     const [dragZoneSize, setDragZoneSize] = useState({ width: 1800, height: 600 });
     const [stagePos, setStagePos] = useState({ x: 0, y: 0 });
@@ -112,7 +111,7 @@ const Viewer = () => {
         const id = localStorage.getItem("id");
         function verifikasi(id, token) {
             axios
-                .post(`${process.env.REACT_APP_BACKEND}/verify`, {
+                .post(`${process.env.REACT_APP_BACKEND}/api/verify`, {
                     token: token,
                 })
                 .then(function (response) {
@@ -129,7 +128,7 @@ const Viewer = () => {
 
         function getLayout() {
             axios
-                .get(`${process.env.REACT_APP_BACKEND}/getLayout`)
+                .get(`${process.env.REACT_APP_BACKEND}/api/getLayout`)
                 .then(function (response) {
                     if (response.status == 200) {
                         // Convert peserta and fixated_peserta fields to array of objects
@@ -162,7 +161,6 @@ const Viewer = () => {
                             }
                         }
                     } else {
-                        console.log("Tidak berhasil mengambil postingan");
                         return;
                     }
                 })
@@ -176,11 +174,8 @@ const Viewer = () => {
                 });
         }
 
-        return () => {
-            verifikasi(id, token);
-            getLayout();
-
-        };
+        verifikasi(id, token);
+        getLayout();
     }, []);
 
     const handlePrint = () => window.print();
@@ -234,8 +229,8 @@ const Viewer = () => {
             </div>
             <div className='flex flex-col lg:flex-row flex-wrap gap-6'>
                 <div className='flex-1'>
-                    <div className='mb-4 flex items-center gap-3 pb-3'>
-                        <span className='bg-gray-200 ml-2 text-gray-800 px-4 py-2 rounded border text-sm font-medium'>
+                    <div className='flex items-center gap-3 pb-3'>
+                        <span className='bg-gray-200 ml-2 text-gray-800 px-4 py-2 rounded border text-sm font-medium' style={{ minWidth: 150 }}>
                             Total Meja: {meja}
                         </span>
                         <div className="flex w-full justify-between items-center flex-col md:flex-row gap-3">
@@ -338,7 +333,7 @@ const Viewer = () => {
                         {tableOrder.map((mejaIndex, visualIndex) => (
                             <div
                                 key={mejaIndex}
-                                className={`absolute ${selectedTables.includes(mejaIndex) ? 'ring-2 ring-blue-500' : ''}`}
+                                className={`absolute`}
                                 style={{
                                     minWidth: 180,
                                     minHeight: 140,
@@ -481,7 +476,7 @@ const Viewer = () => {
                 </div>
 
 
-                <div className='w-full flex-shrink-0'>
+                <div className='w-full flex-shrink-0' style={{ pageBreakBefore: 'always' }}>
                     <div className='flex justify-between items-center mb-3'>
                         <h2 className='text-lg font-semibold'>Daftar Peserta</h2>
                     </div>

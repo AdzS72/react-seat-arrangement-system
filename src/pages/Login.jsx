@@ -1,7 +1,6 @@
 import React, { use, useState } from "react";
 import bg from "../images/bg_login.jpg";
 import logo_tni_au from "../images/Lambang_TNI_AU.png";
-// import logo_kpl from "../images/kaporlap_logo.png";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 
@@ -18,19 +17,16 @@ export const Login = () => {
         const username = data.get("username");
         const password = data.get("password");
         axios
-            .post(`${process.env.REACT_APP_BACKEND}/login`, {
+            .post(`${process.env.REACT_APP_BACKEND}/api/login`, {
                 username: username,
                 password: password,
             })
             .then(async function (response) {
                 if (response.data == "Wrong Password" || response.data == "Invalid username") {
-                    console.log("Wrong Password");
                 } else {
                     localStorage.setItem("username", response.data.username);
                     localStorage.setItem("id", response.data.id);
                     localStorage.setItem("token", response.data.token);
-
-                    console.log(response.data);
 
                     if (response.data.role == "1") {
                         navigate("/dashboard");
@@ -41,8 +37,6 @@ export const Login = () => {
                 }
             })
             .catch(async function (error) {
-                console.log(username, password);
-                console.log(error);
                 setError("Gagal Melakukan Login");
                 setTimeout(() => {
                     setError(null);
@@ -74,7 +68,6 @@ export const Login = () => {
             >
                 <a href="#" class="d-flex justify-content-center mb-4">
                     <img src={logo_tni_au} alt="" width="100"></img>
-                    {/* <img src={logo_kpl} alt="" width="100"></img> */}
                 </a>
 
                 <div class="text-center mb-3">
