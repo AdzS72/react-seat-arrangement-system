@@ -11,10 +11,29 @@ const Dashboard = () => {
     const { isAdmin } = useAuth();
 
     const data = [
-        { nama: 'Peserta 1', hadir: true },
-        { nama: 'Peserta 2', hadir: true },
-        { nama: 'Peserta 3', hadir: true },
-        { nama: 'Peserta 4', hadir: true },
+        { nama: 'Peserta 1', hadir: true, rank: "" },
+        { nama: 'Peserta 2', hadir: true, rank: "" },
+        { nama: 'Peserta 3', hadir: true, rank: "" },
+        { nama: 'Peserta 4', hadir: true, rank: "" },
+    ];
+
+    const RANKS = [
+        { name: "Bintang 4", color: "#FFD700" }, // Gold
+        { name: "Bintang 3", color: "#FFC300" }, // Saffron
+        { name: "Bintang 2", color: "#FFB300" }, // Orange-Yellow
+        { name: "Bintang 1", color: "#FFA500" }, // Orange
+        { name: "Pamen", color: "#A3E635" },     // Lime Green
+        { name: "Pama", color: "#38BDF8" },      // Sky Blue
+        { name: "Bintara", color: "#808080" },   // Light Orange
+        { name: "Tamtama", color: "#F87171" },   // Light Red
+        { name: "PIA", color: "#F472B6" },       // Pink
+        { name: "TNI AL", color: "#1E3A8A" },    // Dark Blue
+        { name: "TNI AD", color: "#166534" },    // Dark Green
+        { name: "Purnawirawan Bintang 4", color: "#B8860B" }, // Darker Gold
+        { name: "Purnawirawan Bintang 3", color: "#B8860B" }, // Darker Saffron (reuse dark gold for simplicity)
+        { name: "Purnawirawan Bintang 2", color: "#B87333" }, // Bronze
+        { name: "Purnawirawan Bintang 1", color: "#8B4513" }, // SaddleBrown
+        { name: "Purnawirawan Pamen", color: "#38761D" }, // Darker Green
     ];
 
     const [meja, setMeja] = useState(0);
@@ -207,6 +226,149 @@ const Dashboard = () => {
 
         };
     }, []);
+
+    const getRankColor = (rank) => {
+        const found = RANKS.find(r => r.name === rank);
+        return found ? found.color : "#fff";
+    };
+
+    const RankSelector = ({ value, onChange }) => {
+        const [open, setOpen] = useState(false);
+        const ref = useRef();
+
+        // Close dropdown on outside click
+        useEffect(() => {
+            if (!open) return;
+            const handleClick = (e) => {
+                if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+            };
+            document.addEventListener('mousedown', handleClick);
+            return () => document.removeEventListener('mousedown', handleClick);
+        }, [open]);
+
+        // Group ranks for display
+        const bintangRanks = RANKS.filter(r => r.name.startsWith("Bintang"));
+        const purnBintangRanks = RANKS.filter(r => r.name.startsWith("Purnawirawan Bintang"));
+        const purnPamenRanks = RANKS.filter(r => r.name === "Purnawirawan Pamen");
+        const pamenBelow = RANKS.filter(r =>
+            !r.name.startsWith("Bintang") &&
+            !r.name.startsWith("Purnawirawan Bintang") &&
+            r.name !== "Purnawirawan Pamen" &&
+            r.name !== "PIA" &&
+            r.name !== "TNI AL" &&
+            r.name !== "TNI AD"
+        );
+        const otherRanks = RANKS.filter(r =>
+            !r.name.startsWith("Bintang") &&
+            !r.name.startsWith("Purnawirawan Bintang") &&
+            r.name !== "Pamen" &&
+            r.name !== "Purnawirawan Pamen" &&
+            r.name !== "Pama" &&
+            r.name !== "Bintara" &&
+            r.name !== "Tamtama"
+        );
+
+        return (
+            <div className="relative inline-block" ref={ref}>
+                <div
+                    className="w-6 h-6 rounded cursor-pointer border flex items-center justify-center"
+                    style={{ background: getRankColor(value) }}
+                    onClick={e => { e.stopPropagation(); setOpen(o => !o); }}
+                    title={value || "Pilih Pangkat"}
+                >
+                    {value ? value.split(" ")[0][0] : "?"}
+                </div>
+                {open && (
+                    <div
+                        className="absolute z-50 bg-white border rounded shadow-lg mt-1 left-0 flex gap-4 p-2"
+                        style={{ minWidth: 320 }}
+                    >
+                        {/* Bintang */}
+                        <div>
+                            <div className="font-semibold text-xs mb-1" style={{ minWidth: 120 }}>Bintang</div>
+                            {bintangRanks.map(rank => (
+                                <div
+                                    key={rank.name}
+                                    className="flex items-center gap-2 px-2 py-1 cursor-pointer hover:bg-gray-100 rounded"
+                                    onClick={() => { onChange(rank.name); setOpen(false); }}
+                                >
+                                    <span className="w-4 h-4 rounded" style={{ background: rank.color }}></span>
+                                    <span>{rank.name}</span>
+                                </div>
+                            ))}
+                        </div>
+                        {/* Purnawirawan Bintang */}
+                        <div>
+                            <div className="font-semibold text-xs mb-1" style={{ minWidth: 140 }}>Purnawirawan</div>
+                            {purnBintangRanks.map(rank => (
+                                <div
+                                    key={rank.name}
+                                    className="flex items-center gap-2 px-2 py-1 cursor-pointer hover:bg-gray-100 rounded"
+                                    onClick={() => { onChange(rank.name); setOpen(false); }}
+                                >
+                                    <span className="w-4 h-4 rounded" style={{ background: rank.color }}></span>
+                                    <span>{rank.name.replace("Purnawirawan ", "")}</span>
+                                </div>
+                            ))}
+                            {purnPamenRanks.map(rank => (
+                                <div
+                                    key={rank.name}
+                                    className="flex items-center gap-2 px-2 py-1 cursor-pointer hover:bg-gray-100 rounded"
+                                    onClick={() => { onChange(rank.name); setOpen(false); }}
+                                >
+                                    <span className="w-4 h-4 rounded" style={{ background: rank.color }}></span>
+                                    <span>{rank.name.replace("Purnawirawan ", "")}</span>
+                                </div>
+                            ))}
+                        </div>
+                        {/* Pamen & Purnawirawan Pamen */}
+                        <div>
+                            <div className="font-semibold text-xs mb-1">Pamen Ke Bawah</div>
+                            {pamenBelow.map(rank => (
+                                <div
+                                    key={rank.name}
+                                    className="flex items-center gap-2 px-2 py-1 cursor-pointer hover:bg-gray-100 rounded"
+                                    onClick={() => { onChange(rank.name); setOpen(false); }}
+                                >
+                                    <span className="w-4 h-4 rounded" style={{ background: rank.color }}></span>
+                                    <span>{rank.name}</span>
+                                </div>
+                            ))}
+                        </div>
+                        {/* Other */}
+                        <div>
+                            <div className="font-semibold text-xs mb-1">Lainnya</div>
+                            {otherRanks.map(rank => (
+                                <div
+                                    key={rank.name}
+                                    className="flex items-center gap-2 px-2 py-1 cursor-pointer hover:bg-gray-100 rounded"
+                                    onClick={() => { onChange(rank.name); setOpen(false); }}
+                                >
+                                    <span className="w-4 h-4 rounded" style={{ background: rank.color }}></span>
+                                    <span>{rank.name}</span>
+                                </div>
+                            ))}
+                        </div>
+                        {/* Hapus */}
+                        <div className="bottom-1 left-1 right-1 text-center ">
+                            <div
+                                className="px-2 py-1 text-xs text-gray-400 cursor-pointer hover:bg-gray-100 rounded"
+                                onClick={() => { onChange(""); setOpen(false); }}
+                            >
+                                Hapus Pangkat
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
+        );
+    };
+
+    const handleChangeRank = (index, rank) => {
+        const updated = [...peserta];
+        updated[index].rank = rank;
+        setPeserta(updated);
+    };
 
     const handleKurangiMeja = () => {
         setMeja(prev => {
@@ -467,15 +629,15 @@ const Dashboard = () => {
         // <DndProvider backend={HTML5Backend}>
         <div className='p-6'>
             <div className='grid grid-cols-3 gap-4 mb-6'>
-                <div className='bg-blue-100 p-4 rounded shadow text-center'>
+                <div className='bg-blue-300 p-4 rounded text-center'>
                     <h2 className='text-xl font-bold'>Total Peserta</h2>
                     <p className='text-2xl'>{total}</p>
                 </div>
-                <div className='bg-green-100 p-4 rounded shadow text-center'>
+                <div className='bg-green-300 p-4 rounded text-center'>
                     <h2 className='text-xl font-bold'>Hadir</h2>
                     <p className='text-2xl'>{hadir}</p>
                 </div>
-                <div className='bg-red-100 p-4 rounded shadow text-center'>
+                <div className='bg-red-300 p-4 rounded text-center'>
                     <h2 className='text-xl font-bold'>Tidak Hadir</h2>
                     <p className='text-2xl'>{tidakHadir}</p>
                 </div>
@@ -484,31 +646,17 @@ const Dashboard = () => {
                 <div className='flex-1'>
                     <div className="flex w-full justify-between items-center flex-col md:flex-row gap-3">
                         <div className=' flex items-center gap-3 py-3'>
-                            <div className="relative">
-                                <button
-                                    onClick={() => setShowDropdown(d => !d)}
-                                    className='no-print bg-blue-600 text-white mr-2 px-4 py-2 rounded hover:bg-blue-700'
-                                >
+
+                            <div class="dropdown no-print">
+                                <button class="btn btn-primary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                                     Tambah Meja
                                 </button>
-                                {showDropdown && (
-                                    <div className="absolute left-0 mt-2 bg-white border rounded shadow z-50">
-                                        <button
-                                            onClick={handleTambahMejaCircle}
-                                            className="block w-full text-left px-4 py-2 hover:bg-blue-100"
-                                        >
-                                            Meja Bulat
-                                        </button>
-                                        <button
-                                            onClick={handleTambahMejaRectangle}
-                                            className="block w-full text-left px-4 py-2 hover:bg-blue-100"
-                                        >
-                                            Meja Persegi
-                                        </button>
-                                    </div>
-                                )}
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" onClick={handleTambahMejaCircle}>Meja Bulat</a></li>
+                                    <li><a class="dropdown-item" onClick={handleTambahMejaRectangle}>Meja Persegi</a></li>
+                                </ul>
                             </div>
-                            <button onClick={handleKurangiMeja} className='no-print bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700'>
+                            <button onClick={handleKurangiMeja} className='no-print btn btn-primary text-white '>
                                 Kurangi Meja
                             </button>
                             <span className='bg-gray-200 ml-2 text-gray-800 px-4 py-2 rounded border text-sm font-medium'>
@@ -579,7 +727,7 @@ const Dashboard = () => {
                                 </button>
                             </div>
                             <div className="mt-6">
-                                <button onClick={handlePrint} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                                <button onClick={handlePrint} className="btn btn-primary text-white px-4 py-2 rounded ">
                                     <i className="bi bi-printer-fill pr-3"></i>Cetak Layout
                                 </button>
                             </div>
@@ -628,7 +776,7 @@ const Dashboard = () => {
                                     position: 'absolute',
                                     zIndex: 20,
                                     cursor: 'move',
-                                    boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
+                                    // boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
                                 }}
                             >
                                 PANGGUNG
@@ -725,7 +873,7 @@ const Dashboard = () => {
                                         >
                                             {tableShape[mejaIndex] === 'circle' ? (
                                                 <div
-                                                    className="absolute rounded-full bg-blue-200 border border-blue-400 shadow"
+                                                    className="absolute rounded-full bg-gray-200 border border-blue-400"
                                                     style={{
                                                         width: 70,
                                                         height: 70,
@@ -744,7 +892,7 @@ const Dashboard = () => {
                                             ) : (
                                                 // Rectangle table
                                                 <div
-                                                    className="absolute bg-blue-200 border border-blue-400 shadow"
+                                                    className="absolute bg-gray-200 border border-blue-400 "
                                                     style={{
                                                         width: 120,
                                                         height: 60,
@@ -791,18 +939,20 @@ const Dashboard = () => {
                                                                 <button
                                                                     type="button"
                                                                     className={`w-full h-full rounded-full border flex items-center justify-center text-xs font-medium transition
-                                                                    ${peserta
+        ${peserta
                                                                             ? peserta.hadir
-                                                                                ? "bg-green-200 border-green-400"
-                                                                                : "bg-red-200 border-red-400"
-                                                                            : "bg-gray-100 border-gray-300"}
-                                                                    hover:ring-2 hover:ring-blue-400`}
+                                                                                ? "border-green-400"
+                                                                                : "border-red-400"
+                                                                            : "border-gray-300"}
+        hover:ring-2 hover:ring-blue-400`}
+                                                                    style={{
+                                                                        backgroundColor: peserta ? getRankColor(peserta.rank) : "#f3f4f6"
+                                                                    }}
                                                                     onClick={() => {
                                                                         if (peserta) {
                                                                             const pesertaIndex = fixatedPeserta.findIndex(
                                                                                 p => p && p.nama === peserta.nama
                                                                             );
-
                                                                             if (pesertaIndex !== -1) {
                                                                                 toggleHadir(pesertaIndex);
                                                                             }
@@ -896,18 +1046,20 @@ const Dashboard = () => {
                                                                 <button
                                                                     type="button"
                                                                     className={`w-full h-full rounded-full border flex items-center justify-center text-xs font-medium transition
-                                                                    ${peserta
+        ${peserta
                                                                             ? peserta.hadir
-                                                                                ? "bg-green-200 border-green-400"
-                                                                                : "bg-red-200 border-red-400"
-                                                                            : "bg-gray-100 border-gray-300"}
-                                                                    hover:ring-2 hover:ring-blue-400`}
+                                                                                ? "border-green-400"
+                                                                                : "border-red-400"
+                                                                            : "border-gray-300"}
+        hover:ring-2 hover:ring-blue-400`}
+                                                                    style={{
+                                                                        backgroundColor: peserta ? getRankColor(peserta.rank) : "#f3f4f6"
+                                                                    }}
                                                                     onClick={() => {
                                                                         if (peserta) {
                                                                             const pesertaIndex = fixatedPeserta.findIndex(
                                                                                 p => p && p.nama === peserta.nama
                                                                             );
-
                                                                             if (pesertaIndex !== -1) {
                                                                                 toggleHadir(pesertaIndex);
                                                                             }
@@ -1002,7 +1154,7 @@ const Dashboard = () => {
 
                 </div>
 
-                <div className='w-full flex-shrink-0'>
+                <div className='w-full flex-shrink-0' style={{ pageBreakBefore: 'always' }}>
                     <div className="space-y-3 mb-3" >
                         <span className="text-lg font-semibold">Nama Kegiatan: </span>
                     </div>
@@ -1011,10 +1163,10 @@ const Dashboard = () => {
                             style={{ resize: "vertical" }} />
                     </div>
                 </div>
-                <div className='w-full flex-shrink-0' style={{ pageBreakBefore: 'always' }}>
+                <div className='w-full flex-shrink-0' >
                     <div className='flex justify-between items-center mb-3'>
                         <h2 className='text-lg font-semibold'>Daftar Peserta per Meja</h2>
-                        <button onClick={handleTambahPeserta} className='no-print bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600'>
+                        <button onClick={handleTambahPeserta} className='no-print bg-blue-500 text-white px-3 py-1 rounded hover:btn btn-primary'>
                             + Tambah
                         </button>
                     </div>
@@ -1026,16 +1178,25 @@ const Dashboard = () => {
                                 {pesertaList.length === 0 && <div className="text-xs text-gray-400">Kosong</div>}
                                 {pesertaList.map((p, idx) => (
                                     <div key={idx} className="flex items-center gap-2 p-2 border rounded bg-white shadow-sm">
+                                        {/* Rank box */}
+                                        <RankSelector
+                                            value={p.rank}
+                                            onChange={rank => handleChangeRank(peserta.findIndex(x => x.nama === p.nama), rank)}
+                                        />
                                         <input
                                             type='text'
                                             value={p.nama}
                                             onChange={e => handleGantiNama(peserta.findIndex(x => x.nama === p.nama), e.target.value)}
                                             className='flex-grow border rounded px-2 py-1 text-sm min-w-[120px]'
+                                            style={{
+                                                backgroundColor: getRankColor(p.rank),
+                                                transition: 'background 0.2s'
+                                            }}
                                         />
                                         <button
                                             onClick={() => toggleHadir(peserta.findIndex(x => x.nama === p.nama))}
                                             className={`text-xs px-2 py-1 rounded font-semibold
-                                ${p.hadir ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}
+                ${p.hadir ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}
                                             style={{
                                                 minWidth: 60,
                                                 textAlign: 'center',
@@ -1073,11 +1234,19 @@ const Dashboard = () => {
                                 if (belumTertampung.length === 0) return <div className="text-xs text-gray-400">Kosong</div>;
                                 return belumTertampung.map((p, idx) => (
                                     <div key={idx} className="flex items-center gap-2 p-2 border rounded bg-white shadow-sm">
+                                        <RankSelector
+                                            value={p.rank}
+                                            onChange={rank => handleChangeRank(peserta.findIndex(x => x.nama === p.nama), rank)}
+                                        />
                                         <input
                                             type='text'
                                             value={p.nama}
                                             onChange={e => handleGantiNama(peserta.findIndex(x => x.nama === p.nama), e.target.value)}
                                             className='flex-grow border rounded px-2 py-1 text-sm min-w-[120px]'
+                                            style={{
+                                                backgroundColor: getRankColor(p.rank),
+                                                transition: 'background 0.2s'
+                                            }}
                                         />
                                         <button
                                             onClick={() => toggleHadir(peserta.findIndex(x => x.nama === p.nama))}
@@ -1114,11 +1283,19 @@ const Dashboard = () => {
                                 if (tidakHadirList.length === 0) return <div className="text-xs text-gray-400">Kosong</div>;
                                 return tidakHadirList.map((p, idx) => (
                                     <div key={idx} className="flex items-center gap-2 p-2 border rounded bg-white shadow-sm">
+                                        <RankSelector
+                                            value={p.rank}
+                                            onChange={rank => handleChangeRank(peserta.findIndex(x => x.nama === p.nama), rank)}
+                                        />
                                         <input
                                             type='text'
                                             value={p.nama}
                                             onChange={e => handleGantiNama(peserta.findIndex(x => x.nama === p.nama), e.target.value)}
                                             className='flex-grow border rounded px-2 py-1 text-sm min-w-[120px]'
+                                            style={{
+                                                backgroundColor: getRankColor(p.rank),
+                                                transition: 'background 0.2s'
+                                            }}
                                         />
                                         <button
                                             onClick={() => toggleHadir(peserta.findIndex(x => x.nama === p.nama))}
@@ -1163,7 +1340,6 @@ export function DashboardWithFooter() {
                     {/* Icon */}
                     <a href="#" class="d-flex pt-4 justify-content-center mb-4">
                         <img src={logo_tni_au} alt="" width="50"></img>
-                        {/* <img src={logo_kpl} alt="" width="100"></img> */}
                     </a>
                     <span className="text-2xl font-semibold tracking-wide">Seating Arrangement System</span>
                 </div>
