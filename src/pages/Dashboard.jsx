@@ -35,6 +35,9 @@ const Dashboard = () => {
     const [successAlert, setSuccessAlert] = useState(false);
     const [error, setError] = useState(null);
 
+    const [tableShape, setTableShape] = useState([]); // 'circle' or 'rectangle'
+    const [showDropdown, setShowDropdown] = useState(false);
+
     const total = peserta.length;
     const hadir = peserta.filter(p => p.hadir).length;
     const tidakHadir = total - hadir;
@@ -75,10 +78,8 @@ const Dashboard = () => {
     React.useEffect(() => {
         setTableOrder((prev) => {
             if (meja > prev.length) {
-                // Add new tables at the end
                 return [...prev, ...Array.from({ length: meja - prev.length }, (_, i) => prev.length + i)];
             } else if (meja < prev.length) {
-                // Remove tables from the end
                 return prev.slice(0, meja);
             }
             return prev;
@@ -86,10 +87,8 @@ const Dashboard = () => {
 
         setTablePositions((prev) => {
             if (meja > prev.length) {
-                // Add new positions
                 return [...prev, ...Array.from({ length: meja - prev.length }, () => ({ x: 0, y: 0 }))];
             } else if (meja < prev.length) {
-                // Remove positions
                 return prev.slice(0, meja);
             }
             return prev;
@@ -97,10 +96,18 @@ const Dashboard = () => {
 
         setTableSeats((prev) => {
             if (meja > prev.length) {
-                // Add new tables with 6 seats
                 return [...prev, ...Array.from({ length: meja - prev.length }, () => 6)];
             } else if (meja < prev.length) {
-                // Remove tables from the end
+                return prev.slice(0, meja);
+            }
+            return prev;
+        });
+
+        setTableShape((prev) => {
+            if (meja > prev.length) {
+                // Default new tables to 'circle'
+                return [...prev, ...Array.from({ length: meja - prev.length }, () => 'circle')];
+            } else if (meja < prev.length) {
                 return prev.slice(0, meja);
             }
             return prev;
@@ -138,7 +145,6 @@ const Dashboard = () => {
                         // Convert peserta and fixated_peserta fields to array of objects
                         const layouts = response.data;
                         setLayouts(layouts);
-                        console.log(response.data, "Layouts fetched:", layouts);
                         if (layouts && layouts.length > 0) {
                             setOptions(
                                 layouts.map((layout, idx) => ({
@@ -165,6 +171,7 @@ const Dashboard = () => {
                                 }
                             }
                         }
+                        console.log("Layouts fetched successfully:", layouts);
                     } else {
                         return;
                     }
@@ -201,8 +208,16 @@ const Dashboard = () => {
         };
     }, []);
 
-    const handleTambahMeja = () => setMeja(prev => prev + 1);
-    const handleKurangiMeja = () => setMeja(prev => (prev > 1 ? prev - 1 : 1));
+    const handleKurangiMeja = () => {
+        setMeja(prev => {
+            if (prev > 1) {
+                setTableShape(shape => shape.slice(0, prev - 1));
+                return prev - 1;
+            }
+            return 1;
+        });
+    };
+
     const handlePrint = () => window.print();
 
     const handleTambahPeserta = () => {
@@ -219,7 +234,6 @@ const Dashboard = () => {
         setLayoutName(text);
     };
 
-    // Add seat to a table
     const handleAddSeat = (tableIdx) => {
         setTableSeats((prev) => {
             const updated = [...prev];
@@ -228,7 +242,6 @@ const Dashboard = () => {
         });
     };
 
-    // Remove seat from a table
     const handleRemoveSeat = (tableIdx) => {
         setTableSeats((prev) => {
             const updated = [...prev];
@@ -256,13 +269,24 @@ const Dashboard = () => {
         return result;
     }, [peserta, meja, tableSeats]);
 
+    const pesertaByTable = React.useMemo(() => {
+        const result = Array.from({ length: meja }, () => []);
+        for (let t = 0; t < meja; t++) {
+            const seatCount = tableSeats[t] || 6;
+            for (let s = 0; s < seatCount; s++) {
+                const peserta = arrangedPeserta[t * 100 + s];
+                if (peserta) result[t].push({ ...peserta, seat: s });
+            }
+        }
+        return result;
+    }, [arrangedPeserta, meja, tableSeats]);
+
     const handleGantiNama = (index, value) => {
         const updated = [...peserta];
         updated[index].nama = value;
         setPeserta(updated);
     };
 
-    // Multi-select handler
     const handleSelectTable = (mejaIndex, e) => {
         if (e.ctrlKey || e.metaKey) {
             setSelectedTables(prev =>
@@ -275,7 +299,6 @@ const Dashboard = () => {
         }
     };
 
-    // Multi-drag handler
     const handleMultiDrag = (visualIndex, mejaIndex, e, data) => {
         // If not selected, drag only this table
         if (!selectedTables.includes(mejaIndex)) {
@@ -321,10 +344,12 @@ const Dashboard = () => {
             dragzone_size: dragZoneSize,
             position_stage: stagePos,
             position_arrow: arrowPos,
+            table_shape: tableShape,
         };
+
         try {
             // Check if layout name already exists
-            const existingLayout = layouts.find(l => l.name === layoutName);
+            const existingLayout = Array.isArray(layouts) ? layouts.find(l => l.name === layoutName) : null;
 
             let response;
             if (existingLayout) {
@@ -360,6 +385,7 @@ const Dashboard = () => {
                 }
             }
         } catch (error) {
+            console.error("Error saving layout:", error);
             setError("Gagal menyimpan layout");
             setTimeout(() => setError(null), 3000);
         }
@@ -387,7 +413,7 @@ const Dashboard = () => {
                 setSelectedOption(null);
                 setLayoutName('');
                 setEventName('');
-                setMeja('');
+                setMeja(0);
                 setPeserta([]);
                 setFixatedPeserta([]);
                 setTableSeats([]);
@@ -421,9 +447,21 @@ const Dashboard = () => {
             setDragZoneSize(layout.dragzone_size || { width: 1800, height: 600 });
             setStagePos(layout.position_stage || { x: 0, y: 0 });
             setArrowPos(layout.position_arrow || { x: 0, y: 0 });
+            setTableShape(layout.table_shape || []);
         }
     };
 
+    const handleTambahMejaCircle = () => {
+        setMeja(prev => prev + 1);
+        setTableShape(prev => [...prev, 'circle']);
+        setShowDropdown(false);
+    };
+
+    const handleTambahMejaRectangle = () => {
+        setMeja(prev => prev + 1);
+        setTableShape(prev => [...prev, 'rectangle']);
+        setShowDropdown(false);
+    };
 
     return (
         // <DndProvider backend={HTML5Backend}>
@@ -446,9 +484,30 @@ const Dashboard = () => {
                 <div className='flex-1'>
                     <div className="flex w-full justify-between items-center flex-col md:flex-row gap-3">
                         <div className=' flex items-center gap-3 py-3'>
-                            <button onClick={handleTambahMeja} className='no-print bg-blue-600 text-white mr-2 px-4 py-2 rounded hover:bg-blue-700'>
-                                Tambah Meja
-                            </button>
+                            <div className="relative">
+                                <button
+                                    onClick={() => setShowDropdown(d => !d)}
+                                    className='no-print bg-blue-600 text-white mr-2 px-4 py-2 rounded hover:bg-blue-700'
+                                >
+                                    Tambah Meja
+                                </button>
+                                {showDropdown && (
+                                    <div className="absolute left-0 mt-2 bg-white border rounded shadow z-50">
+                                        <button
+                                            onClick={handleTambahMejaCircle}
+                                            className="block w-full text-left px-4 py-2 hover:bg-blue-100"
+                                        >
+                                            Meja Bulat
+                                        </button>
+                                        <button
+                                            onClick={handleTambahMejaRectangle}
+                                            className="block w-full text-left px-4 py-2 hover:bg-blue-100"
+                                        >
+                                            Meja Persegi
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
                             <button onClick={handleKurangiMeja} className='no-print bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700'>
                                 Kurangi Meja
                             </button>
@@ -614,7 +673,12 @@ const Dashboard = () => {
                             >
                                 <div
                                     className={`absolute ${selectedTables.includes(mejaIndex) ? 'ring-2 ring-blue-500' : ''}`}
-                                    style={{ minWidth: 180, minHeight: 140, zIndex: 10 }}
+                                    style={{
+                                        minWidth: tableShape[mejaIndex] === 'rectangle' ? 200 : 180,
+                                        minHeight: 140,
+                                        zIndex: 10,
+                                        width: tableShape[mejaIndex] === 'rectangle' ? 260 : 140,
+                                    }}
                                     onClick={e => handleSelectTable(mejaIndex, e)}
                                 >
                                     {/* Checkbox for selection */}
@@ -650,7 +714,6 @@ const Dashboard = () => {
                                             title="Tambah Kursi"
                                         >+</button>
                                     </div>
-                                    {/* ...rest of your table rendering code... */}
                                     <div className="relative flex flex-col items-center" style={{ minHeight: 120, paddingBottom: 32 }}>
                                         <h3 className="text-center font-semibold mb-2">Meja {visualIndex + 1}</h3>
                                         <div
@@ -660,87 +723,215 @@ const Dashboard = () => {
                                                 height: 100,
                                             }}
                                         >
-                                            {/* Table circle */}
-                                            <div
-                                                className="absolute rounded-full bg-blue-200 border border-blue-400 shadow"
-                                                style={{
-                                                    width: 70,
-                                                    height: 70,
-                                                    left: 45,
-                                                    top: 15,
-                                                    zIndex: 1,
-                                                    display: "flex",
-                                                    alignItems: "center",
-                                                    justifyContent: "center",
-                                                    fontWeight: "bold",
-                                                    fontSize: 18,
-                                                }}
-                                            >
-                                                {visualIndex + 1}
-                                            </div>
+                                            {tableShape[mejaIndex] === 'circle' ? (
+                                                <div
+                                                    className="absolute rounded-full bg-blue-200 border border-blue-400 shadow"
+                                                    style={{
+                                                        width: 70,
+                                                        height: 70,
+                                                        left: 45,
+                                                        top: 15,
+                                                        zIndex: 1,
+                                                        display: "flex",
+                                                        alignItems: "center",
+                                                        justifyContent: "center",
+                                                        fontWeight: "bold",
+                                                        fontSize: 18,
+                                                    }}
+                                                >
+                                                    {visualIndex + 1}
+                                                </div>
+                                            ) : (
+                                                // Rectangle table
+                                                <div
+                                                    className="absolute bg-blue-200 border border-blue-400 shadow"
+                                                    style={{
+                                                        width: 120,
+                                                        height: 60,
+                                                        left: 20,
+                                                        top: 25,
+                                                        zIndex: 1,
+                                                        borderRadius: 8,
+                                                        display: "flex",
+                                                        alignItems: "center",
+                                                        justifyContent: "center",
+                                                        fontWeight: "bold",
+                                                        fontSize: 18,
+                                                    }}
+                                                >
+                                                    {visualIndex + 1}
+                                                </div>
+                                            )}
                                             {/* Render seats dynamically */}
                                             {(() => {
                                                 const seatCount = tableSeats[mejaIndex] || 6;
-                                                return Array.from({ length: seatCount }).map((_, idx) => {
-                                                    const angle = (idx / (seatCount - 1 || 1)) * Math.PI;
-                                                    const radius = 65;
-                                                    const seatSize = 36;
-                                                    const centerX = 80;
-                                                    const centerY = 50;
-                                                    const left = centerX + radius * Math.cos(angle) - seatSize / 2;
-                                                    const top = centerY + radius * Math.sin(angle) - seatSize / 2;
-                                                    const peserta = arrangedPeserta[mejaIndex * 100 + idx];
+                                                if (tableShape[mejaIndex] === 'circle') {
+                                                    return Array.from({ length: seatCount }).map((_, idx) => {
+                                                        const angle = (idx / (seatCount - 1 || 1)) * Math.PI;
+                                                        const radius = 65;
+                                                        const seatSize = 36;
+                                                        const centerX = 80;
+                                                        const centerY = 50;
+                                                        const left = centerX + radius * Math.cos(angle) - seatSize / 2;
+                                                        const top = centerY + radius * Math.sin(angle) - seatSize / 2;
+                                                        const peserta = arrangedPeserta[mejaIndex * 100 + idx];
 
-                                                    return (
-                                                        <div
-                                                            key={idx}
-                                                            className="absolute group"
-                                                            style={{
-                                                                left,
-                                                                top,
-                                                                width: seatSize,
-                                                                height: seatSize,
-                                                                zIndex: 2,
-                                                            }}
-                                                        >
-                                                            <button
-                                                                type="button"
-                                                                className={`w-full h-full rounded-full border flex items-center justify-center text-xs font-medium transition
-                                                                    ${peserta
-                                                                        ? peserta.hadir
-                                                                            ? "bg-green-200 border-green-400"
-                                                                            : "bg-red-200 border-red-400"
-                                                                        : "bg-gray-100 border-gray-300"}
-                                                                    hover:ring-2 hover:ring-blue-400`}
-                                                                onClick={() => {
-                                                                    if (peserta) {
-                                                                        const pesertaIndex = fixatedPeserta.findIndex(
-                                                                            p => p && p.nama === peserta.nama
-                                                                        );
-
-                                                                        if (pesertaIndex !== -1) {
-                                                                            toggleHadir(pesertaIndex);
-                                                                        }
-                                                                    }
+                                                        return (
+                                                            <div
+                                                                key={idx}
+                                                                className="absolute group"
+                                                                style={{
+                                                                    left,
+                                                                    top,
+                                                                    width: seatSize,
+                                                                    height: seatSize,
+                                                                    zIndex: 2,
                                                                 }}
                                                             >
-                                                                {peserta ? (
-                                                                    <span className="truncate max-w-[80%]">
-                                                                        {idx + 1}
-                                                                    </span>
-                                                                ) : (
-                                                                    "❌"
+                                                                <button
+                                                                    type="button"
+                                                                    className={`w-full h-full rounded-full border flex items-center justify-center text-xs font-medium transition
+                                                                    ${peserta
+                                                                            ? peserta.hadir
+                                                                                ? "bg-green-200 border-green-400"
+                                                                                : "bg-red-200 border-red-400"
+                                                                            : "bg-gray-100 border-gray-300"}
+                                                                    hover:ring-2 hover:ring-blue-400`}
+                                                                    onClick={() => {
+                                                                        if (peserta) {
+                                                                            const pesertaIndex = fixatedPeserta.findIndex(
+                                                                                p => p && p.nama === peserta.nama
+                                                                            );
+
+                                                                            if (pesertaIndex !== -1) {
+                                                                                toggleHadir(pesertaIndex);
+                                                                            }
+                                                                        }
+                                                                    }}
+                                                                >
+                                                                    {peserta ? (
+                                                                        <span className="truncate max-w-[80%]">
+                                                                            {idx + 1}
+                                                                        </span>
+                                                                    ) : (
+                                                                        "❌"
+                                                                    )}
+                                                                </button>
+                                                                {/* Tooltip on hover */}
+                                                                {peserta && (
+                                                                    <div className="absolute left-1/2 -translate-x-1/2 -top-8 z-50 hidden group-hover:block bg-black text-white text-xs rounded px-2 py-1 whitespace-nowrap pointer-events-none">
+                                                                        {peserta.nama}
+                                                                    </div>
                                                                 )}
-                                                            </button>
-                                                            {/* Tooltip on hover */}
-                                                            {peserta && (
-                                                                <div className="absolute left-1/2 -translate-x-1/2 -top-8 z-50 hidden group-hover:block bg-black text-white text-xs rounded px-2 py-1 whitespace-nowrap pointer-events-none">
-                                                                    {peserta.nama}
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    );
-                                                });
+                                                            </div>
+                                                        );
+                                                    });
+                                                } else {
+                                                    // Rectangle: distribute seats on left, right, and bottom sides only
+                                                    const seatSize = 32;
+                                                    const rectW = 140, rectH = 70;
+                                                    const offsetX = 10, offsetY = 25;
+                                                    let seats = [];
+                                                    let seatIdx = 0;
+                                                    if (seatCount <= 3) {
+                                                        // All seats on bottom side, evenly spaced
+                                                        for (let i = 0; i < seatCount; i++, seatIdx++) {
+                                                            const left = offsetX + ((rectW / (seatCount + 1)) * (i + 1)) - seatSize / 2;
+                                                            seats.push({
+                                                                left,
+                                                                top: offsetY + rectH,
+                                                                idx: seatIdx,
+                                                            });
+                                                        }
+                                                    } else {
+                                                        let perSide = Math.floor(seatCount / 3);
+                                                        let extra = seatCount % 3;
+                                                        let leftSeats = perSide + (extra > 0 ? 1 : 0);
+                                                        let rightSeats = perSide + (extra > 1 ? 1 : 0);
+                                                        let bottomSeats = perSide;
+
+                                                        // Left side
+                                                        for (let i = 0; i < leftSeats; i++, seatIdx++) {
+                                                            const top = offsetY + ((rectH / (leftSeats)) * (i + 1)) - seatSize / 2;
+                                                            seats.push({
+                                                                left: offsetX - seatSize,
+                                                                top,
+                                                                idx: seatIdx,
+                                                            });
+                                                        }
+                                                        // Right side
+                                                        for (let i = 0; i < rightSeats; i++, seatIdx++) {
+                                                            const top = offsetY + ((rectH / (rightSeats)) * (i + 1)) - seatSize / 2;
+                                                            seats.push({
+                                                                left: offsetX + rectW,
+                                                                top,
+                                                                idx: seatIdx,
+                                                            });
+                                                        }
+                                                        // Bottom side
+                                                        for (let i = 0; i < bottomSeats; i++, seatIdx++) {
+                                                            const left = offsetX + ((rectW / (bottomSeats + 1)) * (i + 1)) - seatSize / 2;
+                                                            seats.push({
+                                                                left,
+                                                                top: offsetY + rectH,
+                                                                idx: seatIdx,
+                                                            });
+                                                        }
+                                                    }
+
+                                                    return seats.map(({ left, top, idx }) => {
+                                                        const peserta = arrangedPeserta[mejaIndex * 100 + idx];
+                                                        return (
+                                                            <div
+                                                                key={idx}
+                                                                className="absolute group"
+                                                                style={{
+                                                                    left,
+                                                                    top,
+                                                                    width: seatSize,
+                                                                    height: seatSize,
+                                                                    zIndex: 2,
+                                                                }}
+                                                            >
+                                                                <button
+                                                                    type="button"
+                                                                    className={`w-full h-full rounded-full border flex items-center justify-center text-xs font-medium transition
+                                                                    ${peserta
+                                                                            ? peserta.hadir
+                                                                                ? "bg-green-200 border-green-400"
+                                                                                : "bg-red-200 border-red-400"
+                                                                            : "bg-gray-100 border-gray-300"}
+                                                                    hover:ring-2 hover:ring-blue-400`}
+                                                                    onClick={() => {
+                                                                        if (peserta) {
+                                                                            const pesertaIndex = fixatedPeserta.findIndex(
+                                                                                p => p && p.nama === peserta.nama
+                                                                            );
+
+                                                                            if (pesertaIndex !== -1) {
+                                                                                toggleHadir(pesertaIndex);
+                                                                            }
+                                                                        }
+                                                                    }}
+                                                                >
+                                                                    {peserta ? (
+                                                                        <span className="truncate max-w-[80%]">
+                                                                            {idx + 1}
+                                                                        </span>
+                                                                    ) : (
+                                                                        "❌"
+                                                                    )}
+                                                                </button>
+                                                                {/* Tooltip on hover */}
+                                                                {peserta && (
+                                                                    <div className="absolute left-1/2 -translate-x-1/2 -top-8 z-50 hidden group-hover:block bg-black text-white text-xs rounded px-2 py-1 whitespace-nowrap pointer-events-none">
+                                                                        {peserta.nama}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    });
+                                                }
                                             })()}
 
                                         </div>
@@ -822,42 +1013,140 @@ const Dashboard = () => {
                 </div>
                 <div className='w-full flex-shrink-0' style={{ pageBreakBefore: 'always' }}>
                     <div className='flex justify-between items-center mb-3'>
-                        <h2 className='text-lg font-semibold'>Daftar Peserta</h2>
+                        <h2 className='text-lg font-semibold'>Daftar Peserta per Meja</h2>
                         <button onClick={handleTambahPeserta} className='no-print bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600'>
                             + Tambah
                         </button>
                     </div>
+                    {/* Per Meja tables */}
                     <div className="flex gap-5 flex-wrap">
-                        {Array.from({ length: Math.ceil(peserta.length / 15) }).map((_, colIdx) => (
-                            <div key={colIdx} className="space-y-3 min-w-[220px]">
-                                {peserta.slice(colIdx * 15, (colIdx + 1) * 15).map((p, index) => {
-                                    const realIndex = colIdx * 15 + index;
-                                    return (
-                                        <div key={realIndex} className="flex items-center gap-2 p-2 border rounded bg-white shadow-sm">
-                                            <input type='text' value={p.nama} onChange={e => handleGantiNama(realIndex, e.target.value)} className='flex-grow border rounded px-2 py-1 text-sm min-w-[200px]' />
-                                            <button onClick={() => toggleHadir(realIndex)} className={`text-xs px-2 py-1 rounded font-semibold
-                                ${p.hadir
-                                                    ? 'bg-green-100 text-green-700'
-                                                    : 'bg-red-100 text-red-700'
-                                                }`}
-                                                style={{
-                                                    minWidth: 60,
-                                                    textAlign: 'center',
-                                                    backgroundColor: p.hadir ? '#bbf7d0' : '#fecaca', // pastel green or pastel red
-                                                    color: p.hadir ? '#166534' : '#991b1b'
-                                                }}>
-                                                {p.hadir ? 'Hadir' : 'Tidak'}
-                                            </button>
-                                            <button onClick={() => {
+                        {pesertaByTable.map((pesertaList, tIdx) => (
+                            <div key={tIdx} className="space-y-3 min-w-[220px]">
+                                <div className="font-bold mb-1">Meja {tIdx + 1}</div>
+                                {pesertaList.length === 0 && <div className="text-xs text-gray-400">Kosong</div>}
+                                {pesertaList.map((p, idx) => (
+                                    <div key={idx} className="flex items-center gap-2 p-2 border rounded bg-white shadow-sm">
+                                        <input
+                                            type='text'
+                                            value={p.nama}
+                                            onChange={e => handleGantiNama(peserta.findIndex(x => x.nama === p.nama), e.target.value)}
+                                            className='flex-grow border rounded px-2 py-1 text-sm min-w-[120px]'
+                                        />
+                                        <button
+                                            onClick={() => toggleHadir(peserta.findIndex(x => x.nama === p.nama))}
+                                            className={`text-xs px-2 py-1 rounded font-semibold
+                                ${p.hadir ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}
+                                            style={{
+                                                minWidth: 60,
+                                                textAlign: 'center',
+                                                backgroundColor: p.hadir ? '#bbf7d0' : '#fecaca',
+                                                color: p.hadir ? '#166534' : '#991b1b'
+                                            }}>
+                                            {p.hadir ? 'Hadir' : 'Tidak'}
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                const idxPeserta = peserta.findIndex(x => x.nama === p.nama);
                                                 const updated = [...peserta];
-                                                updated.splice(realIndex, 1);
+                                                updated.splice(idxPeserta, 1);
                                                 setPeserta(updated);
-                                            }} title='Hapus Peserta' className='no-print text-red-500 hover:text-red-700 ml-1 text-sm font-bold px-2'> &times; </button>
-                                        </div>
-                                    );
-                                })}
+                                            }}
+                                            title='Hapus Peserta'
+                                            className='no-print text-red-500 hover:text-red-700 ml-1 text-sm font-bold px-2'>
+                                            &times;
+                                        </button>
+                                    </div>
+                                ))}
                             </div>
                         ))}
+                    </div>
+                    {/* Below: Belum tertampung & Tidak Hadir */}
+                    <div className="flex gap-5 flex-wrap mt-12">
+                        {/* Belum tertampung */}
+                        <div className="space-y-3 min-w-[220px]">
+                            <div className="font-bold mb-1">Belum Tertampung</div>
+                            {(() => {
+                                // Peserta hadir yang tidak tertampung di meja manapun
+                                const assigned = new Set();
+                                pesertaByTable.forEach(list => list.forEach(p => assigned.add(p.nama)));
+                                const belumTertampung = peserta.filter(p => p.hadir && !assigned.has(p.nama));
+                                if (belumTertampung.length === 0) return <div className="text-xs text-gray-400">Kosong</div>;
+                                return belumTertampung.map((p, idx) => (
+                                    <div key={idx} className="flex items-center gap-2 p-2 border rounded bg-white shadow-sm">
+                                        <input
+                                            type='text'
+                                            value={p.nama}
+                                            onChange={e => handleGantiNama(peserta.findIndex(x => x.nama === p.nama), e.target.value)}
+                                            className='flex-grow border rounded px-2 py-1 text-sm min-w-[120px]'
+                                        />
+                                        <button
+                                            onClick={() => toggleHadir(peserta.findIndex(x => x.nama === p.nama))}
+                                            className={`text-xs px-2 py-1 rounded font-semibold
+                                ${p.hadir ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}
+                                            style={{
+                                                minWidth: 60,
+                                                textAlign: 'center',
+                                                backgroundColor: p.hadir ? '#bbf7d0' : '#fecaca',
+                                                color: p.hadir ? '#166534' : '#991b1b'
+                                            }}>
+                                            {p.hadir ? 'Hadir' : 'Tidak'}
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                const idxPeserta = peserta.findIndex(x => x.nama === p.nama);
+                                                const updated = [...peserta];
+                                                updated.splice(idxPeserta, 1);
+                                                setPeserta(updated);
+                                            }}
+                                            title='Hapus Peserta'
+                                            className='no-print text-red-500 hover:text-red-700 ml-1 text-sm font-bold px-2'>
+                                            &times;
+                                        </button>
+                                    </div>
+                                ));
+                            })()}
+                        </div>
+                        {/* Tidak Hadir */}
+                        <div className="space-y-3 min-w-[220px]">
+                            <div className="font-bold mb-1">Tidak Hadir</div>
+                            {(() => {
+                                const tidakHadirList = peserta.filter(p => !p.hadir);
+                                if (tidakHadirList.length === 0) return <div className="text-xs text-gray-400">Kosong</div>;
+                                return tidakHadirList.map((p, idx) => (
+                                    <div key={idx} className="flex items-center gap-2 p-2 border rounded bg-white shadow-sm">
+                                        <input
+                                            type='text'
+                                            value={p.nama}
+                                            onChange={e => handleGantiNama(peserta.findIndex(x => x.nama === p.nama), e.target.value)}
+                                            className='flex-grow border rounded px-2 py-1 text-sm min-w-[120px]'
+                                        />
+                                        <button
+                                            onClick={() => toggleHadir(peserta.findIndex(x => x.nama === p.nama))}
+                                            className={`text-xs px-2 py-1 rounded font-semibold
+                                ${p.hadir ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}
+                                            style={{
+                                                minWidth: 60,
+                                                textAlign: 'center',
+                                                backgroundColor: p.hadir ? '#bbf7d0' : '#fecaca',
+                                                color: p.hadir ? '#166534' : '#991b1b'
+                                            }}>
+                                            {p.hadir ? 'Hadir' : 'Tidak'}
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                const idxPeserta = peserta.findIndex(x => x.nama === p.nama);
+                                                const updated = [...peserta];
+                                                updated.splice(idxPeserta, 1);
+                                                setPeserta(updated);
+                                            }}
+                                            title='Hapus Peserta'
+                                            className='no-print text-red-500 hover:text-red-700 ml-1 text-sm font-bold px-2'>
+                                            &times;
+                                        </button>
+                                    </div>
+                                ));
+                            })()}
+                        </div>
                     </div>
                 </div>
             </div>
