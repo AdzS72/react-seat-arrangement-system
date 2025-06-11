@@ -40,6 +40,10 @@ const Dashboard = () => {
     ];
 
     const ItemTypes = { PESERTA: 'peserta' };
+    const SPECIAL_LISTS = {
+        BELUM_TERTAMPUNG: 'belum_tertampung',
+        TIDAK_HADIR: 'tidak_hadir',
+    };
 
     const [meja, setMeja] = useState(0);
     const [peserta, setPeserta] = useState(data);
@@ -650,24 +654,29 @@ const Dashboard = () => {
         setShowDropdown(false);
     };
 
-    function PesertaRow({ peserta, index, tableIdx, movePeserta, children }) {
+    function PesertaRow({ peserta, index, tableIdx, listType, movePeserta, children }) {
         const ref = React.useRef(null);
 
         const [, drop] = useDrop({
             accept: ItemTypes.PESERTA,
             hover(item) {
                 // Only move if not the same position
-                if (item.tableIdx !== tableIdx || item.index !== index) {
-                    movePeserta(item.tableIdx, item.index, tableIdx, index);
+                if (
+                    item.tableIdx !== tableIdx ||
+                    item.index !== index ||
+                    item.listType !== listType
+                ) {
+                    movePeserta(item.tableIdx, item.index, tableIdx, index, item.listType, listType);
                     item.tableIdx = tableIdx;
                     item.index = index;
+                    item.listType = listType;
                 }
             },
         });
 
         const [{ isDragging }, drag] = useDrag({
             type: ItemTypes.PESERTA,
-            item: { index, tableIdx },
+            item: { index, tableIdx, listType },
             collect: monitor => ({
                 isDragging: monitor.isDragging(),
             }),
@@ -686,12 +695,70 @@ const Dashboard = () => {
         );
     }
 
-    const movePeserta = (fromTableIdx, fromIdx, toTableIdx, toIdx) => {
-        setSeatAssignments(prev => {
-            const updated = prev.map(arr => [...arr]);
-            const [removed] = updated[fromTableIdx].splice(fromIdx, 1);
-            updated[toTableIdx].splice(toIdx, 0, removed);
-            return updated;
+    const movePeserta = (
+        fromTableIdx,
+        fromIdx,
+        toTableIdx,
+        toIdx,
+        fromListType,
+        toListType
+    ) => {
+        setPeserta(prevPeserta => {
+            let peserta = [...prevPeserta];
+
+            // Helper to get peserta index in main array
+            const getPesertaIdx = (listType, tableIdx, idx) => {
+                if (listType === SPECIAL_LISTS.BELUM_TERTAMPUNG) {
+                    // Peserta hadir not assigned to any table
+                    const assigned = new Set();
+                    pesertaByTable.forEach(list => list.forEach(p => assigned.add(p.nama)));
+                    const belumTertampung = peserta.filter(p => p.hadir && !assigned.has(p.nama));
+                    return peserta.findIndex(p => p.nama === belumTertampung[idx]?.nama);
+                }
+                if (listType === SPECIAL_LISTS.TIDAK_HADIR) {
+                    const tidakHadirList = peserta.filter(p => !p.hadir);
+                    return peserta.findIndex(p => p.nama === tidakHadirList[idx]?.nama);
+                }
+                // Table
+                const p = pesertaByTable[tableIdx]?.[idx];
+                return peserta.findIndex(x => x.nama === p?.nama);
+            };
+
+            const fromPesertaIdx = getPesertaIdx(fromListType, fromTableIdx, fromIdx);
+            if (fromPesertaIdx === -1) return peserta;
+
+            // Remove from old location
+            const [movedPeserta] = peserta.splice(fromPesertaIdx, 1);
+
+            // Insert into new location
+            if (toListType === SPECIAL_LISTS.BELUM_TERTAMPUNG) {
+                // Insert before the toIdx-th belum tertampung
+                const assigned = new Set();
+                pesertaByTable.forEach(list => list.forEach(p => assigned.add(p.nama)));
+                const belumTertampung = peserta.filter(p => p.hadir && !assigned.has(p.nama));
+                const targetPeserta = belumTertampung[toIdx];
+                const insertIdx = targetPeserta
+                    ? peserta.findIndex(p => p.nama === targetPeserta.nama)
+                    : peserta.length;
+                peserta.splice(insertIdx, 0, movedPeserta);
+            } else if (toListType === SPECIAL_LISTS.TIDAK_HADIR) {
+                // Insert before the toIdx-th tidak hadir
+                const tidakHadirList = peserta.filter(p => !p.hadir);
+                const targetPeserta = tidakHadirList[toIdx];
+                const insertIdx = targetPeserta
+                    ? peserta.findIndex(p => p.nama === targetPeserta.nama)
+                    : peserta.length;
+                peserta.splice(insertIdx, 0, movedPeserta);
+            } else {
+                // Table: insert before the toIdx-th peserta in that table
+                // Find the peserta in that table
+                const p = pesertaByTable[toTableIdx]?.[toIdx];
+                const insertIdx = p
+                    ? peserta.findIndex(x => x.nama === p.nama)
+                    : peserta.length;
+                peserta.splice(insertIdx, 0, movedPeserta);
+            }
+            return peserta;
         });
     };
 
@@ -699,7 +766,7 @@ const Dashboard = () => {
     return (
         // <DndProvider backend={HTML5Backend}>
         <div className='p-6'>
-            <div className='grid grid-cols-3 gap-4 mb-6'>
+            <div className='grid grid-cols-1 md:grid-cols-3 gap-4 mb-6'>
                 {/* Total Peserta */}
                 <div className='relative bg-blue-300 p-4 rounded text-center overflow-hidden'>
                     {/* Abstract fun pattern, spread on all corners */}
@@ -840,13 +907,14 @@ const Dashboard = () => {
                     <p className='text-2xl relative z-10'>{tidakHadir}</p>
                 </div>
             </div>
-            <div className='flex flex-col lg:flex-row flex-wrap gap-6'>
+            <div className='flex flex-col gap-6 lg:flex-row flex-wrap '>
                 <div className='flex-1'>
                     <div className="flex w-full justify-between items-center flex-col md:flex-row gap-3">
                         <div className=' flex items-center gap-3 py-3'>
 
                             <div class="dropdown no-print">
-                                <button class="btn btn-primary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <button className="dropdown-toggle no-print btn btn-primary text-white px-4 py-2 text-base md:text-m"
+                                    style={{ minWidth: 44, minHeight: 44 }} type="button" data-bs-toggle="dropdown" aria-expanded="false">
                                     Tambah Meja
                                 </button>
                                 <ul class="dropdown-menu">
@@ -854,7 +922,11 @@ const Dashboard = () => {
                                     <li><a class="dropdown-item" onClick={handleTambahMejaRectangle}>Meja Persegi</a></li>
                                 </ul>
                             </div>
-                            <button onClick={handleKurangiMeja} className='no-print btn btn-primary text-white '>
+                            <button
+                                onClick={handleKurangiMeja}
+                                className="no-print btn btn-primary text-white px-4 py-2 text-base md:text-m"
+                                style={{ minWidth: 44, minHeight: 44 }} // Minimum touch target
+                            >
                                 Kurangi Meja
                             </button>
                             <span className='bg-gray-200 ml-2 text-gray-800 px-4 py-2 rounded border text-sm font-medium'>
@@ -942,16 +1014,22 @@ const Dashboard = () => {
                     </div>
 
                     <div
-                        className="print-scale-zone" // <-- Add this wrapper
-                        style={{ width: dragZoneSize.width, height: dragZoneSize.height, margin: "0 auto" }}
+                        className="print-scale-zone"
+                        style={{
+                            width: "100%", // Responsive width
+                            maxWidth: dragZoneSize.width,
+                            height: dragZoneSize.height,
+                            margin: "0 auto",
+                            overflowX: "auto", // Allow horizontal scroll on small screens
+                        }}
                     ><div
                         ref={dragZoneRef}
                         className='relative print:bg-none dragzone-print-scale'
                         style={{
-                            minHeight: 600,
-                            minWidth: 600,
-                            width: dragZoneSize.width, // <-- Use pixel width for resizable
-                            maxWidth: 2400,
+                            minHeight: 400,
+                            minWidth: 320,
+                            width: "100%",
+                            maxWidth: dragZoneSize.width,
                             height: dragZoneSize.height,
                             border: '1px dashed #ccc',
                             position: 'relative',
@@ -1345,7 +1423,7 @@ const Dashboard = () => {
                         </button>
                     </div>
                     {/* Per Meja tables */}
-                    <div className="flex gap-5 flex-wrap">
+                    <div className="flex flex-col md:flex-row gap-5 flex-wrap overflow-x-auto">
                         {pesertaByTable.map((pesertaList, tIdx) => (
                             <div key={tIdx} className="space-y-3 min-w-[220px]">
                                 <div className="font-bold mb-1">Meja {tIdx + 1}</div>
@@ -1356,6 +1434,7 @@ const Dashboard = () => {
                                         peserta={p}
                                         index={idx}
                                         tableIdx={tIdx}
+                                        listType={tIdx}
                                         movePeserta={movePeserta}
                                     >
                                         <div ><i class="bi bi-grip-vertical"></i></div>
@@ -1404,7 +1483,7 @@ const Dashboard = () => {
                         ))}
                     </div>
                     {/* Below: Belum tertampung & Tidak Hadir */}
-                    <div className="flex gap-5 flex-wrap mt-12">
+                    <div className="flex flex-col md:flex-row gap-5 flex-wrap overflow-x-auto mt-12">
                         {/* Belum tertampung */}
                         <div className="space-y-3 min-w-[220px]">
                             <div className="font-bold mb-1">Belum Tertampung</div>
@@ -1415,7 +1494,17 @@ const Dashboard = () => {
                                 const belumTertampung = peserta.filter(p => p.hadir && !assigned.has(p.nama));
                                 if (belumTertampung.length === 0) return <div className="text-xs text-gray-400">Kosong</div>;
                                 return belumTertampung.map((p, idx) => (
-                                    <div key={idx} className="flex items-center gap-2 p-2 border rounded bg-white shadow-sm">
+                                    <PesertaRow
+                                        key={idx}
+                                        peserta={p}
+                                        index={idx}
+                                        tableIdx={null}
+                                        listType={SPECIAL_LISTS.BELUM_TERTAMPUNG}
+                                        movePeserta={movePeserta}
+                                    >
+
+                                        <div ><i class="bi bi-grip-vertical"></i></div>
+                                        <p>{idx + 1}.</p>
                                         <RankSelector
                                             value={p.rank}
                                             onChange={rank => handleChangeRank(peserta.findIndex(x => x.nama === p.nama), rank)}
@@ -1453,7 +1542,7 @@ const Dashboard = () => {
                                             className='no-print text-red-500 hover:text-red-700 ml-1 text-sm font-bold px-2'>
                                             &times;
                                         </button>
-                                    </div>
+                                    </PesertaRow>
                                 ));
                             })()}
                         </div>
@@ -1464,45 +1553,54 @@ const Dashboard = () => {
                                 const tidakHadirList = peserta.filter(p => !p.hadir);
                                 if (tidakHadirList.length === 0) return <div className="text-xs text-gray-400">Kosong</div>;
                                 return tidakHadirList.map((p, idx) => (
-                                    <div key={idx} className="flex items-center gap-2 p-2 border rounded bg-white shadow-sm">
-                                        <RankSelector
-                                            value={p.rank}
-                                            onChange={rank => handleChangeRank(peserta.findIndex(x => x.nama === p.nama), rank)}
-                                        />
-                                        <input
-                                            type='text'
-                                            value={p.nama}
-                                            onChange={e => handleGantiNama(peserta.findIndex(x => x.nama === p.nama), e.target.value)}
-                                            className='flex-grow border rounded px-2 py-1 text-sm min-w-[120px]'
-                                            style={{
-                                                backgroundColor: getRankColor(p.rank),
-                                                transition: 'background 0.2s'
-                                            }}
-                                        />
-                                        <button
-                                            onClick={() => toggleHadir(peserta.findIndex(x => x.nama === p.nama))}
-                                            className={`text-xs px-2 py-1 rounded font-semibold
+                                    <PesertaRow
+                                        key={idx}
+                                        peserta={p}
+                                        index={idx}
+                                        tableIdx={null}
+                                        listType={SPECIAL_LISTS.TIDAK_HADIR}
+                                        movePeserta={movePeserta}
+                                    >
+                                        <div key={idx} className="flex items-center gap-2 p-2 border rounded bg-white shadow-sm">
+                                            <RankSelector
+                                                value={p.rank}
+                                                onChange={rank => handleChangeRank(peserta.findIndex(x => x.nama === p.nama), rank)}
+                                            />
+                                            <input
+                                                type='text'
+                                                value={p.nama}
+                                                onChange={e => handleGantiNama(peserta.findIndex(x => x.nama === p.nama), e.target.value)}
+                                                className='flex-grow border rounded px-2 py-1 text-sm min-w-[120px]'
+                                                style={{
+                                                    backgroundColor: getRankColor(p.rank),
+                                                    transition: 'background 0.2s'
+                                                }}
+                                            />
+                                            <button
+                                                onClick={() => toggleHadir(peserta.findIndex(x => x.nama === p.nama))}
+                                                className={`text-xs px-2 py-1 rounded font-semibold
                                 ${p.hadir ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}
-                                            style={{
-                                                minWidth: 60,
-                                                textAlign: 'center',
-                                                backgroundColor: p.hadir ? '#bbf7d0' : '#fecaca',
-                                                color: p.hadir ? '#166534' : '#991b1b'
-                                            }}>
-                                            {p.hadir ? 'Hadir' : 'Tidak'}
-                                        </button>
-                                        <button
-                                            onClick={() => {
-                                                const idxPeserta = peserta.findIndex(x => x.nama === p.nama);
-                                                const updated = [...peserta];
-                                                updated.splice(idxPeserta, 1);
-                                                setPeserta(updated);
-                                            }}
-                                            title='Hapus Peserta'
-                                            className='no-print text-red-500 hover:text-red-700 ml-1 text-sm font-bold px-2'>
-                                            &times;
-                                        </button>
-                                    </div>
+                                                style={{
+                                                    minWidth: 60,
+                                                    textAlign: 'center',
+                                                    backgroundColor: p.hadir ? '#bbf7d0' : '#fecaca',
+                                                    color: p.hadir ? '#166534' : '#991b1b'
+                                                }}>
+                                                {p.hadir ? 'Hadir' : 'Tidak'}
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    const idxPeserta = peserta.findIndex(x => x.nama === p.nama);
+                                                    const updated = [...peserta];
+                                                    updated.splice(idxPeserta, 1);
+                                                    setPeserta(updated);
+                                                }}
+                                                title='Hapus Peserta'
+                                                className='no-print text-red-500 hover:text-red-700 ml-1 text-sm font-bold px-2'>
+                                                &times;
+                                            </button>
+                                        </div>
+                                    </PesertaRow>
                                 ));
                             })()}
                         </div>
@@ -1518,9 +1616,8 @@ export function DashboardWithFooter() {
     return (
         <>
             <header
-                className="w-full flex items-center justify-between px-6 text-white shadow rounded-b-lg"
+                className="w-full flex flex-col md:flex-row items-center justify-between px-2 md:px-6 text-white shadow rounded-b-lg"
                 style={{
-                    // Soft blue futuristic gradient with subtle pattern overlay
                     background: `linear-gradient(100deg, #3b82f6 0%, #60a5fa 60%, #a5d8ff 100%)`,
                     position: 'relative',
                     overflow: 'hidden',
