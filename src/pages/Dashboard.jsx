@@ -53,6 +53,7 @@ const Dashboard = () => {
     const [selectedTables, setSelectedTables] = useState([]);
     const [tablePositions, setTablePositions] = useState('');
     const [dragZoneSize, setDragZoneSize] = useState({ width: 1800, height: 600 });
+    const [prevDragZoneSize, setPrevDragZoneSize] = useState({ width: 1800, height: 600 });
     const [stagePos, setStagePos] = useState({ x: 0, y: 0 });
     const [arrowPos, setArrowPos] = useState({ x: 0, y: 0 });
     const [eventName, setEventName] = useState('');
@@ -100,9 +101,113 @@ const Dashboard = () => {
         localStorage.setItem('tablePositions', JSON.stringify(tablePositions));
     }, [tablePositions]);
 
-    React.useEffect(() => {
-        localStorage.setItem('dragZoneSize', JSON.stringify(dragZoneSize));
+    useEffect(() => {
+        // Only scale if any item would overflow the new drag zone
+        const STAGE_WIDTH = 320;
+        const STAGE_HEIGHT = 60;
+        const ARROW_WIDTH = 40;
+        const ARROW_HEIGHT = 60;
+        const TABLE_MIN_WIDTH = 140; // adjust if your table is wider
+        const TABLE_MIN_HEIGHT = 140;
+
+        function willOverflow() {
+            // Check tables
+            if (Array.isArray(tablePositions)) {
+                for (let i = 0; i < tablePositions.length; i++) {
+                    const pos = tablePositions[i];
+                    if (!pos) continue;
+                    const width = tableShape[i] === 'rectangle' ? 260 : TABLE_MIN_WIDTH;
+                    const height = TABLE_MIN_HEIGHT;
+                    if (
+                        pos.x < 0 ||
+                        pos.y < 0 ||
+                        pos.x + width > dragZoneSize.width ||
+                        pos.y + height > dragZoneSize.height
+                    ) {
+                        return true;
+                    }
+                }
+            }
+            // Check stage
+            if (
+                stagePos.x < 0 ||
+                stagePos.y < 0 ||
+                stagePos.x + STAGE_WIDTH > dragZoneSize.width ||
+                stagePos.y + STAGE_HEIGHT > dragZoneSize.height
+            ) {
+                return true;
+            }
+            // Check arrow
+            if (
+                arrowPos.x < 0 ||
+                arrowPos.y < 0 ||
+                arrowPos.x + ARROW_WIDTH > dragZoneSize.width ||
+                arrowPos.y + ARROW_HEIGHT > dragZoneSize.height
+            ) {
+                return true;
+            }
+            return false;
+        }
+
+        if (
+            (prevDragZoneSize.width !== dragZoneSize.width ||
+                prevDragZoneSize.height !== dragZoneSize.height) &&
+            willOverflow()
+        ) {
+            const scaleX = dragZoneSize.width / prevDragZoneSize.width;
+            const scaleY = dragZoneSize.height / prevDragZoneSize.height;
+
+            setTablePositions(prev =>
+                prev.map((pos, i) => ({
+                    x: Math.round((pos?.x || 0) * scaleX),
+                    y: Math.round((pos?.y || 0) * scaleY),
+                }))
+            );
+            setStagePos(prev => ({
+                x: Math.round((prev?.x || 0) * scaleX),
+                y: Math.round((prev?.y || 0) * scaleY),
+            }));
+            setArrowPos(prev => ({
+                x: Math.round((prev?.x || 0) * scaleX),
+                y: Math.round((prev?.y || 0) * scaleY),
+            }));
+        }
+        setPrevDragZoneSize({ ...dragZoneSize });
+        // eslint-disable-next-line
     }, [dragZoneSize]);
+
+    useEffect(() => {
+        // Only center horizontally if width changes
+        if (prevDragZoneSize.width !== dragZoneSize.width && Array.isArray(tablePositions) && tablePositions.length > 0) {
+            // Get bounding box of all tables
+            let minX = Infinity, maxX = -Infinity;
+            tablePositions.forEach((pos, i) => {
+                if (!pos) return;
+                const width = tableShape[i] === 'rectangle' ? 260 : 140;
+                minX = Math.min(minX, pos.x);
+                maxX = Math.max(maxX, pos.x + width);
+            });
+            // If no valid tables, skip
+            if (minX === Infinity || maxX === -Infinity) return;
+
+            const tablesWidth = maxX - minX;
+            const zoneWidth = dragZoneSize.width;
+
+            // Only center if tables fit in the zone
+            if (tablesWidth < zoneWidth) {
+                const offsetX = (zoneWidth - tablesWidth) / 2 - minX;
+                setTablePositions(prev =>
+                    prev.map((pos, i) => ({
+                        x: (pos?.x || 0) + offsetX,
+                        y: pos?.y || 0,
+                    }))
+                );
+            }
+            // If tablesWidth > zoneWidth, do nothing (let scroll handle it)
+        }
+        setPrevDragZoneSize({ ...dragZoneSize });
+        // eslint-disable-next-line
+    }, [dragZoneSize.width]);
 
     React.useEffect(() => {
         setTableOrder((prev) => {
@@ -1012,7 +1117,12 @@ const Dashboard = () => {
                         </div>
 
                     </div>
-
+                    <div><div className='pt-4 pb-2 text-center'>
+                        <h2 className='text-xl font-bold'><i>SEATING ARRANGEMENT</i></h2>
+                    </div>
+                        <div className='text-center'>
+                            <h2 className='text-xl font-bold'>{eventName}</h2>
+                        </div></div>
                     <div
                         className="print-scale-zone"
                         style={{
@@ -1022,31 +1132,28 @@ const Dashboard = () => {
                             margin: "0 auto",
                             overflowX: "auto", // Allow horizontal scroll on small screens
                         }}
-                    ><div
-                        ref={dragZoneRef}
-                        className='relative print:bg-none dragzone-print-scale'
-                        style={{
-                            minHeight: 400,
-                            minWidth: 320,
-                            width: "100%",
-                            maxWidth: dragZoneSize.width,
-                            height: dragZoneSize.height,
-                            border: '1px dashed #ccc',
-                            position: 'relative',
-                            resize: 'none',
-                            overflow: 'auto',
-                            boxSizing: 'border-box',
-                            backgroundImage: `radial-gradient(#bbb 1px, transparent 1px), radial-gradient(#bbb 1px, transparent 1px)`,
-                            backgroundSize: '20px 20px',
-                            backgroundPosition: '0 0, 10px 10px'
-                        }}
                     >
-                            <div className='pt-4 pb-2 text-center'>
-                                <h2 className='text-xl font-bold'><i>SEATING ARRANGEMENT</i></h2>
-                            </div>
-                            <div className='text-center'>
-                                <h2 className='text-xl font-bold'>{eventName}</h2>
-                            </div>
+
+                        <div
+                            ref={dragZoneRef}
+                            className='relative print:bg-none dragzone-print-scale'
+                            style={{
+                                minHeight: 400,
+                                minWidth: 320,
+                                width: "100%",
+                                maxWidth: dragZoneSize.width,
+                                height: dragZoneSize.height,
+                                border: '1px dashed #ccc',
+                                position: 'relative',
+                                resize: 'none',
+                                overflow: 'auto',
+                                boxSizing: 'border-box',
+                                backgroundImage: `radial-gradient(#bbb 1px, transparent 1px), radial-gradient(#bbb 1px, transparent 1px)`,
+                                backgroundSize: '20px 20px',
+                                backgroundPosition: '0 0, 10px 10px'
+                            }}
+                        >
+
                             {/* Draggable Stage */}
                             <Draggable
                                 position={stagePos}
