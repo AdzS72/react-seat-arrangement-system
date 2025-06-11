@@ -1,10 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
 import Draggable from 'react-draggable';
+import { DndProvider, useDrag, useDrop } from 'react-dnd';
+import { HTML5Backend } from 'react-dnd-html5-backend';
 import axios from 'axios';
 import { useNavigate } from "react-router-dom";
 import Select from 'react-select';
 import { useAuth } from "../hooks/useAuth";
 import logo_tni_au from "../images/Lambang_TNI_AU.png";
+import bg from "../images/bg_login.jpg";
 
 const Dashboard = () => {
     const navigate = useNavigate();
@@ -18,23 +21,25 @@ const Dashboard = () => {
     ];
 
     const RANKS = [
-        { name: "Bintang 4", color: "#FFD700" }, // Gold
-        { name: "Bintang 3", color: "#FFC300" }, // Saffron
-        { name: "Bintang 2", color: "#FFB300" }, // Orange-Yellow
-        { name: "Bintang 1", color: "#FFA500" }, // Orange
-        { name: "Pamen", color: "#A3E635" },     // Lime Green
-        { name: "Pama", color: "#38BDF8" },      // Sky Blue
-        { name: "Bintara", color: "#808080" },   // Light Orange
-        { name: "Tamtama", color: "#F87171" },   // Light Red
-        { name: "PIA", color: "#F472B6" },       // Pink
-        { name: "TNI AL", color: "#1E3A8A" },    // Dark Blue
-        { name: "TNI AD", color: "#166534" },    // Dark Green
-        { name: "Purnawirawan Bintang 4", color: "#B8860B" }, // Darker Gold
-        { name: "Purnawirawan Bintang 3", color: "#B8860B" }, // Darker Saffron (reuse dark gold for simplicity)
-        { name: "Purnawirawan Bintang 2", color: "#B87333" }, // Bronze
-        { name: "Purnawirawan Bintang 1", color: "#8B4513" }, // SaddleBrown
-        { name: "Purnawirawan Pamen", color: "#38761D" }, // Darker Green
+        { name: "Bintang 4", color: "#FFD700" },      // Gold
+        { name: "Bintang 3", color: "#FFB300" },      // Vivid Orange-Yellow
+        { name: "Bintang 2", color: "#FF8C00" },      // Dark Orange
+        { name: "Bintang 1", color: "#FF7043" },      // Coral
+        { name: "Pamen", color: "#7ED957" },          // Soft Green
+        { name: "Pama", color: "#38BDF8" },           // Sky Blue
+        { name: "Bintara", color: "#a6a3a2" },        // Light Purple
+        { name: "Tamtama", color: "#F87171" },        // Light Red
+        { name: "PIA", color: "#F472B6" },            // Pink
+        { name: "TNI AL", color: "#4279ad" },         // Light Blue
+        { name: "TNI AD", color: "#75946c" },         // Light Green
+        { name: "Purnawirawan Bintang 4", color: "#FFE066" }, // Lighter Gold
+        { name: "Purnawirawan Bintang 3", color: "#FFD180" }, // Lighter Orange-Yellow
+        { name: "Purnawirawan Bintang 2", color: "#FFAB91" }, // Lighter Orange
+        { name: "Purnawirawan Bintang 1", color: "#FFCCBC" }, // Lighter Coral
+        { name: "Purnawirawan Pamen", color: "#BBF7D0" },     // Lighter Soft Green
     ];
+
+    const ItemTypes = { PESERTA: 'peserta' };
 
     const [meja, setMeja] = useState(0);
     const [peserta, setPeserta] = useState(data);
@@ -53,9 +58,10 @@ const Dashboard = () => {
     const [selectedOption, setSelectedOption] = useState(null);
     const [successAlert, setSuccessAlert] = useState(false);
     const [error, setError] = useState(null);
+    const [showDropdown, setShowDropdown] = useState(false);
 
     const [tableShape, setTableShape] = useState([]); // 'circle' or 'rectangle'
-    const [showDropdown, setShowDropdown] = useState(false);
+    const [seatAssignments, setSeatAssignments] = useState([]); // [ [pesertaIndex, ...], ...] per table
 
     const total = peserta.length;
     const hadir = peserta.filter(p => p.hadir).length;
@@ -375,8 +381,11 @@ const Dashboard = () => {
             if (prev > 1) {
                 setTableShape(shape => shape.slice(0, prev - 1));
                 return prev - 1;
+            } else if (prev === 1) {
+                setTableShape([]);
+                return 0;
             }
-            return 1;
+            return 0;
         });
     };
 
@@ -418,30 +427,46 @@ const Dashboard = () => {
         setPeserta(updated);
     };
 
-    const arrangedPeserta = React.useMemo(() => {
-        const result = [];
-        const listHadir = peserta.filter(p => p.hadir);
+    useEffect(() => {
+        // Only assign hadir peserta
+        const hadirPeserta = peserta.filter(p => p.hadir);
         let idx = 0;
+        const assignments = [];
         for (let t = 0; t < meja; t++) {
-            for (let s = 0; s < (tableSeats[t] || 6); s++) {
-                result[t * 100 + s] = listHadir[idx] || null; // unique key per seat
+            const seats = tableSeats[t] || 6;
+            assignments[t] = [];
+            for (let s = 0; s < seats; s++) {
+                assignments[t][s] = hadirPeserta[idx] ? peserta.indexOf(hadirPeserta[idx]) : null;
                 idx++;
             }
         }
-        return result;
+        setSeatAssignments(assignments);
     }, [peserta, meja, tableSeats]);
+
+    const arrangedPeserta = React.useMemo(() => {
+        // Flatten seatAssignments to a map: [table*100+seat] = peserta object
+        const result = [];
+        for (let t = 0; t < seatAssignments.length; t++) {
+            for (let s = 0; s < (seatAssignments[t]?.length || 0); s++) {
+                const pesertaIdx = seatAssignments[t][s];
+                result[t * 100 + s] = pesertaIdx !== null && pesertaIdx !== undefined ? peserta[pesertaIdx] : null;
+            }
+        }
+        return result;
+    }, [seatAssignments, peserta]);
 
     const pesertaByTable = React.useMemo(() => {
         const result = Array.from({ length: meja }, () => []);
         for (let t = 0; t < meja; t++) {
-            const seatCount = tableSeats[t] || 6;
-            for (let s = 0; s < seatCount; s++) {
-                const peserta = arrangedPeserta[t * 100 + s];
-                if (peserta) result[t].push({ ...peserta, seat: s });
+            for (let s = 0; s < (seatAssignments[t]?.length || 0); s++) {
+                const pesertaIdx = seatAssignments[t][s];
+                if (pesertaIdx !== null && pesertaIdx !== undefined && peserta[pesertaIdx]) {
+                    result[t].push({ ...peserta[pesertaIdx], seat: s });
+                }
             }
         }
         return result;
-    }, [arrangedPeserta, meja, tableSeats]);
+    }, [seatAssignments, peserta, meja]);
 
     const handleGantiNama = (index, value) => {
         const updated = [...peserta];
@@ -625,21 +650,194 @@ const Dashboard = () => {
         setShowDropdown(false);
     };
 
+    function PesertaRow({ peserta, index, tableIdx, movePeserta, children }) {
+        const ref = React.useRef(null);
+
+        const [, drop] = useDrop({
+            accept: ItemTypes.PESERTA,
+            hover(item) {
+                // Only move if not the same position
+                if (item.tableIdx !== tableIdx || item.index !== index) {
+                    movePeserta(item.tableIdx, item.index, tableIdx, index);
+                    item.tableIdx = tableIdx;
+                    item.index = index;
+                }
+            },
+        });
+
+        const [{ isDragging }, drag] = useDrag({
+            type: ItemTypes.PESERTA,
+            item: { index, tableIdx },
+            collect: monitor => ({
+                isDragging: monitor.isDragging(),
+            }),
+        });
+
+        drag(drop(ref));
+
+        return (
+            <div
+                ref={ref}
+                style={{ opacity: isDragging ? 0.5 : 1, cursor: 'move' }}
+                className="flex items-center gap-2 p-2 border rounded bg-white shadow-sm"
+            >
+                {children}
+            </div>
+        );
+    }
+
+    const movePeserta = (fromTableIdx, fromIdx, toTableIdx, toIdx) => {
+        setSeatAssignments(prev => {
+            const updated = prev.map(arr => [...arr]);
+            const [removed] = updated[fromTableIdx].splice(fromIdx, 1);
+            updated[toTableIdx].splice(toIdx, 0, removed);
+            return updated;
+        });
+    };
+
+
     return (
         // <DndProvider backend={HTML5Backend}>
         <div className='p-6'>
             <div className='grid grid-cols-3 gap-4 mb-6'>
-                <div className='bg-blue-300 p-4 rounded text-center'>
-                    <h2 className='text-xl font-bold'>Total Peserta</h2>
-                    <p className='text-2xl'>{total}</p>
+                {/* Total Peserta */}
+                <div className='relative bg-blue-300 p-4 rounded text-center overflow-hidden'>
+                    {/* Abstract fun pattern, spread on all corners */}
+                    <svg
+                        width="120"
+                        height="120"
+                        className="absolute left-0 top-0 pointer-events-none"
+                        style={{ zIndex: 0, opacity: 0.35 }}
+                    >
+                        <circle cx="36" cy="36" r="28" fill="#fff" />
+                        <rect x="70" y="12" width="32" height="32" rx="10" fill="#60a5fa" />
+                        <ellipse cx="90" cy="100" rx="16" ry="8" fill="#3b82f6" />
+                        <polygon points="100,10 110,40 80,30" fill="#2563eb" opacity="0.7" />
+                        <circle cx="100" cy="60" r="8" fill="#bae6fd" />
+                    </svg>
+                    <svg
+                        width="80"
+                        height="80"
+                        className="absolute right-0 top-0 pointer-events-none"
+                        style={{ zIndex: 0, opacity: 0.25 }}
+                    >
+                        <ellipse cx="60" cy="20" rx="18" ry="10" fill="#60a5fa" />
+                        <rect x="10" y="40" width="30" height="18" rx="6" fill="#fff" />
+                        <circle cx="70" cy="60" r="10" fill="#3b82f6" />
+                    </svg>
+                    <svg
+                        width="80"
+                        height="80"
+                        className="absolute left-0 bottom-0 pointer-events-none"
+                        style={{ zIndex: 0, opacity: 0.22 }}
+                    >
+                        <rect x="10" y="40" width="30" height="18" rx="6" fill="#bae6fd" />
+                        <ellipse cx="60" cy="60" rx="14" ry="8" fill="#fff" />
+                        <circle cx="20" cy="20" r="12" fill="#2563eb" opacity="0.6" />
+                    </svg>
+                    <svg
+                        width="60"
+                        height="60"
+                        className="absolute right-0 bottom-0 pointer-events-none"
+                        style={{ zIndex: 0, opacity: 0.18 }}
+                    >
+                        <ellipse cx="40" cy="40" rx="14" ry="8" fill="#3b82f6" />
+                        <rect x="10" y="10" width="20" height="10" rx="4" fill="#fff" />
+                    </svg>
+                    <h2 className='text-xl font-bold relative z-10'>Peserta</h2>
+                    <p className='text-2xl relative z-10'>{total}</p>
                 </div>
-                <div className='bg-green-300 p-4 rounded text-center'>
-                    <h2 className='text-xl font-bold'>Hadir</h2>
-                    <p className='text-2xl'>{hadir}</p>
+                {/* Hadir */}
+                <div className='relative bg-green-300 p-4 rounded text-center overflow-hidden'>
+                    <svg
+                        width="120"
+                        height="120"
+                        className="absolute left-0 top-0 pointer-events-none"
+                        style={{ zIndex: 0, opacity: 0.35 }}
+                    >
+                        <rect x="12" y="12" width="36" height="36" rx="12" fill="#fff" />
+                        <circle cx="100" cy="36" r="20" fill="#bbf7d0" />
+                        <ellipse cx="70" cy="100" rx="20" ry="10" fill="#22c55e" />
+                        <polygon points="60,10 80,40 40,30" fill="#4ade80" opacity="0.7" />
+                        <circle cx="100" cy="80" r="10" fill="#bbf7d0" />
+                    </svg>
+                    <svg
+                        width="80"
+                        height="80"
+                        className="absolute right-0 top-0 pointer-events-none"
+                        style={{ zIndex: 0, opacity: 0.25 }}
+                    >
+                        <ellipse cx="60" cy="20" rx="18" ry="10" fill="#bbf7d0" />
+                        <rect x="10" y="40" width="30" height="18" rx="6" fill="#fff" />
+                        <circle cx="70" cy="60" r="10" fill="#22c55e" />
+                    </svg>
+                    <svg
+                        width="80"
+                        height="80"
+                        className="absolute left-0 bottom-0 pointer-events-none"
+                        style={{ zIndex: 0, opacity: 0.22 }}
+                    >
+                        <rect x="10" y="40" width="30" height="18" rx="6" fill="#bbf7d0" />
+                        <ellipse cx="60" cy="60" rx="14" ry="8" fill="#fff" />
+                        <circle cx="20" cy="20" r="12" fill="#4ade80" opacity="0.6" />
+                    </svg>
+                    <svg
+                        width="60"
+                        height="60"
+                        className="absolute right-0 bottom-0 pointer-events-none"
+                        style={{ zIndex: 0, opacity: 0.18 }}
+                    >
+                        <ellipse cx="40" cy="40" rx="14" ry="8" fill="#22c55e" />
+                        <rect x="10" y="10" width="20" height="10" rx="4" fill="#fff" />
+                    </svg>
+                    <h2 className='text-xl font-bold relative z-10'>Hadir</h2>
+                    <p className='text-2xl relative z-10'>{hadir}</p>
                 </div>
-                <div className='bg-red-300 p-4 rounded text-center'>
-                    <h2 className='text-xl font-bold'>Tidak Hadir</h2>
-                    <p className='text-2xl'>{tidakHadir}</p>
+                {/* Tidak Hadir */}
+                <div className='relative bg-red-300 p-4 rounded text-center overflow-hidden'>
+                    <svg
+                        width="120"
+                        height="120"
+                        className="absolute left-0 top-0 pointer-events-none"
+                        style={{ zIndex: 0, opacity: 0.35 }}
+                    >
+                        <ellipse cx="36" cy="36" rx="22" ry="14" fill="#fff" />
+                        <rect x="70" y="12" width="32" height="32" rx="10" fill="#fecaca" />
+                        <circle cx="100" cy="100" r="16" fill="#ef4444" />
+                        <polygon points="100,10 110,40 80,30" fill="#f87171" opacity="0.7" />
+                        <circle cx="100" cy="60" r="8" fill="#fecaca" />
+                    </svg>
+                    <svg
+                        width="80"
+                        height="80"
+                        className="absolute right-0 top-0 pointer-events-none"
+                        style={{ zIndex: 0, opacity: 0.25 }}
+                    >
+                        <ellipse cx="60" cy="20" rx="18" ry="10" fill="#fecaca" />
+                        <rect x="10" y="40" width="30" height="18" rx="6" fill="#fff" />
+                        <circle cx="70" cy="60" r="10" fill="#ef4444" />
+                    </svg>
+                    <svg
+                        width="80"
+                        height="80"
+                        className="absolute left-0 bottom-0 pointer-events-none"
+                        style={{ zIndex: 0, opacity: 0.22 }}
+                    >
+                        <rect x="10" y="40" width="30" height="18" rx="6" fill="#fecaca" />
+                        <ellipse cx="60" cy="60" rx="14" ry="8" fill="#fff" />
+                        <circle cx="20" cy="20" r="12" fill="#f87171" opacity="0.6" />
+                    </svg>
+                    <svg
+                        width="60"
+                        height="60"
+                        className="absolute right-0 bottom-0 pointer-events-none"
+                        style={{ zIndex: 0, opacity: 0.18 }}
+                    >
+                        <ellipse cx="40" cy="40" rx="14" ry="8" fill="#ef4444" />
+                        <rect x="10" y="10" width="20" height="10" rx="4" fill="#fff" />
+                    </svg>
+                    <h2 className='text-xl font-bold relative z-10'>Tidak Hadir</h2>
+                    <p className='text-2xl relative z-10'>{tidakHadir}</p>
                 </div>
             </div>
             <div className='flex flex-col lg:flex-row flex-wrap gap-6'>
@@ -663,71 +861,79 @@ const Dashboard = () => {
                                 Total Meja: {meja}
                             </span>
                         </div>
-                        <div className='no-print flex gap-3'>
-                            <div className='mt-6 flex-col md:flex-row font-normal text-sm'>
-                                {successAlert && (
-                                    <div class="alert alert-success" role="alert">
-                                        Data Berhasil Disimpan!
-                                    </div>
-                                )}
-                                {error && (
-                                    <div class="alert alert-danger" role="alert">
-                                        {error}
-                                    </div>
-                                )}
-                            </div>
 
-                            <div style={{ minWidth: 220 }}>
-                                <div className="mb-1 ms-1 font-normal text-sm text-gray-700">
-                                    Pilih layout yang tersimpan pada database
+                        <div className=' flex items-center gap-3 text-sm'>
+                            {successAlert && (
+                                <div class="alert alert-success" role="alert">
+                                    Data Berhasil Disimpan!
                                 </div>
-                                <Select
-                                    options={options}
-                                    value={selectedOption}
-                                    onChange={handleSelectLayout}
-                                    placeholder="Pilih layout"
-                                    isClearable
-                                    getOptionLabel={option => option.label}
-                                    getOptionValue={option => option.value}
-                                    styles={{
-                                        container: base => ({ ...base, minWidth: 220 }),
-                                        menu: base => ({ ...base, zIndex: 9999 }),
-                                    }}
-                                />
-                            </div>
-                            {/* Input for new layout name */}
-                            <div >
-                                <div className="mb-1 ms-1 font-normal text-sm text-gray-700">
-                                    Nama Layout
+                            )}
+                            {error && (
+                                <div class="alert alert-danger" role="alert">
+                                    {error}
                                 </div>
-                                <input
-                                    type="text"
-                                    value={layoutName}
-                                    onChange={e => handleChangeLayoutName(e.target.value)}
-                                    className="form-control border rounded px-3 py-2 text-sm w-full"
-                                    placeholder="Masukkan nama layout"
-                                    style={{ maxWidth: 220 }}
-                                />
+                            )}
+                        </div>
+
+                        <div className="no-print flex flex-col md:flex-row gap-3 w-full md:w-auto mb-2">
+                            <div className="flex flex-col md:flex-row gap-3 w-full">
+
+
+                                <div style={{ minWidth: 320 }}>
+                                    <div className="mb-1 ms-1 font-normal text-sm text-gray-700">
+                                        Pilih layout yang tersimpan pada database
+                                    </div>
+                                    <Select
+                                        options={options}
+                                        value={selectedOption}
+                                        onChange={handleSelectLayout}
+                                        placeholder="Pilih layout"
+                                        isClearable
+                                        getOptionLabel={option => option.label}
+                                        getOptionValue={option => option.value}
+                                        styles={{
+                                            container: base => ({ ...base, minWidth: 220 }),
+                                            menu: base => ({ ...base, zIndex: 9999 }),
+                                        }}
+                                    />
+                                </div>
+                                {/* Input for new layout name */}
+                                <div style={{ minWidth: 300 }}>
+                                    <div className="mb-1 ms-1 font-normal text-sm text-gray-700">
+                                        Nama Layout
+                                    </div>
+                                    <input
+                                        type="text"
+                                        value={layoutName}
+                                        onChange={e => handleChangeLayoutName(e.target.value)}
+                                        className="form-control border rounded px-3 py-2 text-sm w-full"
+                                        placeholder="Masukkan nama layout"
+                                        styles={{
+                                            container: base => ({ ...base, minWidth: 220 }),
+                                            menu: base => ({ ...base, zIndex: 9999 }),
+                                        }}
+                                    />
+                                </div>
                             </div>
-                            <div className='mt-6'>
+                            {/* Responsive action buttons */}
+                            <div className="flex flex-col sm:flex-row gap-3 w-full mt-3 md:mt-6">
                                 <button
                                     onClick={handleSaveLayout}
-                                    className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+                                    className="bg-green-600 text-white px-3 py-2 rounded hover:bg-green-700 flex-1"
                                 >
                                     <i className="bi bi-floppy-fill pr-3"></i>Simpan Layout
                                 </button>
-                            </div>
-                            <div className="mt-6">
                                 <button
                                     onClick={handleDeleteLayout}
-                                    className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
+                                    className="bg-red-600 text-white px-3 py-2 rounded hover:bg-red-700"
                                     disabled={!selectedOption}
                                 >
                                     <i className="bi bi-trash-fill pr-3"></i>Hapus Layout
                                 </button>
-                            </div>
-                            <div className="mt-6">
-                                <button onClick={handlePrint} className="btn btn-primary text-white px-4 py-2 rounded ">
+                                <button
+                                    onClick={handlePrint}
+                                    className="bg-blue-600 text-white px-3 py-2 rounded hover:bg-blue-700"
+                                >
                                     <i className="bi bi-printer-fill pr-3"></i>Cetak Layout
                                 </button>
                             </div>
@@ -736,421 +942,389 @@ const Dashboard = () => {
                     </div>
 
                     <div
+                        className="print-scale-zone" // <-- Add this wrapper
+                        style={{ width: dragZoneSize.width, height: dragZoneSize.height, margin: "0 auto" }}
+                    ><div
                         ref={dragZoneRef}
-                        className='relative'
+                        className='relative print:bg-none dragzone-print-scale'
                         style={{
                             minHeight: 600,
-                            // minWidth: 600,
-                            width: dragZoneSize.width,
+                            minWidth: 600,
+                            width: dragZoneSize.width, // <-- Use pixel width for resizable
+                            maxWidth: 2400,
                             height: dragZoneSize.height,
                             border: '1px dashed #ccc',
                             position: 'relative',
-                            resize: 'none', // prevent browser default resize
-                            overflow: 'auto'
+                            resize: 'none',
+                            overflow: 'auto',
+                            boxSizing: 'border-box',
+                            backgroundImage: `radial-gradient(#bbb 1px, transparent 1px), radial-gradient(#bbb 1px, transparent 1px)`,
+                            backgroundSize: '20px 20px',
+                            backgroundPosition: '0 0, 10px 10px'
                         }}
                     >
-                        <div className='pt-4 pb-2 text-center'>
-                            <h2 className='text-xl font-bold'><i>SEATING ARRANGEMENT</i></h2>
-                        </div>
-                        <div className='text-center'>
-                            <h2 className='text-xl font-bold'>{eventName}</h2>
-                        </div>
-                        {/* Draggable Stage */}
-                        <Draggable
-                            position={stagePos}
-                            onStop={(e, data) => setStagePos({ x: data.x, y: data.y })}
-                            bounds="parent"
-                        >
-                            <div
-                                style={{
-                                    width: 320,
-                                    height: 60,
-                                    background: '#444',
-                                    color: 'white',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    borderRadius: 8,
-                                    fontWeight: 'bold',
-                                    fontSize: 20,
-                                    position: 'absolute',
-                                    zIndex: 20,
-                                    cursor: 'move',
-                                    // boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
-                                }}
-                            >
-                                PANGGUNG
+                            <div className='pt-4 pb-2 text-center'>
+                                <h2 className='text-xl font-bold'><i>SEATING ARRANGEMENT</i></h2>
                             </div>
-                        </Draggable>
-
-                        {/* Draggable Entrance Arrow */}
-                        <Draggable
-                            position={arrowPos}
-                            onStop={(e, data) => setArrowPos({ x: data.x, y: data.y })}
-                            bounds="parent"
-                        >
-                            <div
-                                style={{
-                                    width: 40,
-                                    height: 60,
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    position: 'absolute',
-                                    zIndex: 20,
-                                    cursor: 'move',
-                                    background: 'transparent'
-                                }}
-                            >
-                                {/* Large Black Arrow with Long Body */}
-                                <svg width="100" height="300" viewBox="0 0 100 500">
-                                    {/* Arrow body */}
-                                    <rect x="35" y="60" width="30" height="370" fill="#111" />
-                                    {/* Arrow head */}
-                                    <polygon points="50,0 95,100 70,100 70,430 30,430 30,100 5,100" fill="#111" />
-                                </svg>
+                            <div className='text-center'>
+                                <h2 className='text-xl font-bold'>{eventName}</h2>
                             </div>
-                        </Draggable>
-
-                        {tableOrder.map((mejaIndex, visualIndex) => (
+                            {/* Draggable Stage */}
                             <Draggable
-                                key={mejaIndex}
-                                position={tablePositions[visualIndex] || { x: 0, y: 0 }}
-                                onDrag={(e, data) => handleMultiDrag(visualIndex, mejaIndex, e, data)}
+                                position={stagePos}
+                                onStop={(e, data) => setStagePos({ x: data.x, y: data.y })}
                                 bounds="parent"
                             >
                                 <div
-                                    className={`absolute ${selectedTables.includes(mejaIndex) ? 'ring-2 ring-blue-500' : ''}`}
                                     style={{
-                                        minWidth: tableShape[mejaIndex] === 'rectangle' ? 200 : 180,
-                                        minHeight: 140,
-                                        zIndex: 10,
-                                        width: tableShape[mejaIndex] === 'rectangle' ? 260 : 140,
+                                        width: 320,
+                                        height: 60,
+                                        background: '#444',
+                                        color: 'white',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        borderRadius: 8,
+                                        fontWeight: 'bold',
+                                        fontSize: 20,
+                                        position: 'absolute',
+                                        zIndex: 20,
+                                        cursor: 'move',
+                                        // boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
                                     }}
-                                    onClick={e => handleSelectTable(mejaIndex, e)}
                                 >
-                                    {/* Checkbox for selection */}
-                                    <div className="no-print absolute left-2 top-2 z-20">
-                                        <input
-                                            type="checkbox"
-                                            checked={selectedTables.includes(mejaIndex)}
-                                            // Toggle selection directly, ignore ctrl/meta for checkbox
-                                            onChange={e => {
-                                                e.stopPropagation();
-                                                setSelectedTables(prev =>
-                                                    prev.includes(mejaIndex)
-                                                        ? prev.filter(idx => idx !== mejaIndex)
-                                                        : [...prev, mejaIndex]
-                                                );
-                                            }}
-                                            onClick={e => e.stopPropagation()}
-                                        />
-                                    </div>
-                                    {/* + and - buttons */}
-                                    <div className="flex justify-center items-center gap-2 mb-1 mt-6">
-                                        <button
-                                            onClick={e => { e.stopPropagation(); handleRemoveSeat(mejaIndex); }}
-                                            className="no-print bg-red-500 text-white rounded px-2 py-1 text-xs font-bold hover:bg-red-700"
-                                            title="Kurangi Kursi"
-                                        >−</button>
-                                        <span className="text-sm font-medium">
-                                            Kursi: {tableSeats[mejaIndex] || 6}
-                                        </span>
-                                        <button
-                                            onClick={e => { e.stopPropagation(); handleAddSeat(mejaIndex); }}
-                                            className="no-print bg-green-500 text-white rounded px-2 py-1 text-xs font-bold hover:bg-green-700"
-                                            title="Tambah Kursi"
-                                        >+</button>
-                                    </div>
-                                    <div className="relative flex flex-col items-center" style={{ minHeight: 120, paddingBottom: 32 }}>
-                                        <h3 className="text-center font-semibold mb-2">Meja {visualIndex + 1}</h3>
-                                        <div
-                                            className="relative mx-auto"
-                                            style={{
-                                                width: 160,
-                                                height: 100,
-                                            }}
-                                        >
-                                            {tableShape[mejaIndex] === 'circle' ? (
-                                                <div
-                                                    className="absolute rounded-full bg-gray-200 border border-blue-400"
-                                                    style={{
-                                                        width: 70,
-                                                        height: 70,
-                                                        left: 45,
-                                                        top: 15,
-                                                        zIndex: 1,
-                                                        display: "flex",
-                                                        alignItems: "center",
-                                                        justifyContent: "center",
-                                                        fontWeight: "bold",
-                                                        fontSize: 18,
-                                                    }}
-                                                >
-                                                    {visualIndex + 1}
-                                                </div>
-                                            ) : (
-                                                // Rectangle table
-                                                <div
-                                                    className="absolute bg-gray-200 border border-blue-400 "
-                                                    style={{
-                                                        width: 120,
-                                                        height: 60,
-                                                        left: 20,
-                                                        top: 25,
-                                                        zIndex: 1,
-                                                        borderRadius: 8,
-                                                        display: "flex",
-                                                        alignItems: "center",
-                                                        justifyContent: "center",
-                                                        fontWeight: "bold",
-                                                        fontSize: 18,
-                                                    }}
-                                                >
-                                                    {visualIndex + 1}
-                                                </div>
-                                            )}
-                                            {/* Render seats dynamically */}
-                                            {(() => {
-                                                const seatCount = tableSeats[mejaIndex] || 6;
-                                                if (tableShape[mejaIndex] === 'circle') {
-                                                    return Array.from({ length: seatCount }).map((_, idx) => {
-                                                        const angle = (idx / (seatCount - 1 || 1)) * Math.PI;
-                                                        const radius = 65;
-                                                        const seatSize = 36;
-                                                        const centerX = 80;
-                                                        const centerY = 50;
-                                                        const left = centerX + radius * Math.cos(angle) - seatSize / 2;
-                                                        const top = centerY + radius * Math.sin(angle) - seatSize / 2;
-                                                        const peserta = arrangedPeserta[mejaIndex * 100 + idx];
-
-                                                        return (
-                                                            <div
-                                                                key={idx}
-                                                                className="absolute group"
-                                                                style={{
-                                                                    left,
-                                                                    top,
-                                                                    width: seatSize,
-                                                                    height: seatSize,
-                                                                    zIndex: 2,
-                                                                }}
-                                                            >
-                                                                <button
-                                                                    type="button"
-                                                                    className={`w-full h-full rounded-full border flex items-center justify-center text-xs font-medium transition
-        ${peserta
-                                                                            ? peserta.hadir
-                                                                                ? "border-green-400"
-                                                                                : "border-red-400"
-                                                                            : "border-gray-300"}
-        hover:ring-2 hover:ring-blue-400`}
-                                                                    style={{
-                                                                        backgroundColor: peserta ? getRankColor(peserta.rank) : "#f3f4f6"
-                                                                    }}
-                                                                    onClick={() => {
-                                                                        if (peserta) {
-                                                                            const pesertaIndex = fixatedPeserta.findIndex(
-                                                                                p => p && p.nama === peserta.nama
-                                                                            );
-                                                                            if (pesertaIndex !== -1) {
-                                                                                toggleHadir(pesertaIndex);
-                                                                            }
-                                                                        }
-                                                                    }}
-                                                                >
-                                                                    {peserta ? (
-                                                                        <span className="truncate max-w-[80%]">
-                                                                            {idx + 1}
-                                                                        </span>
-                                                                    ) : (
-                                                                        "❌"
-                                                                    )}
-                                                                </button>
-                                                                {/* Tooltip on hover */}
-                                                                {peserta && (
-                                                                    <div className="absolute left-1/2 -translate-x-1/2 -top-8 z-50 hidden group-hover:block bg-black text-white text-xs rounded px-2 py-1 whitespace-nowrap pointer-events-none">
-                                                                        {peserta.nama}
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        );
-                                                    });
-                                                } else {
-                                                    // Rectangle: distribute seats on left, right, and bottom sides only
-                                                    const seatSize = 32;
-                                                    const rectW = 140, rectH = 70;
-                                                    const offsetX = 10, offsetY = 25;
-                                                    let seats = [];
-                                                    let seatIdx = 0;
-                                                    if (seatCount <= 3) {
-                                                        // All seats on bottom side, evenly spaced
-                                                        for (let i = 0; i < seatCount; i++, seatIdx++) {
-                                                            const left = offsetX + ((rectW / (seatCount + 1)) * (i + 1)) - seatSize / 2;
-                                                            seats.push({
-                                                                left,
-                                                                top: offsetY + rectH,
-                                                                idx: seatIdx,
-                                                            });
-                                                        }
-                                                    } else {
-                                                        let perSide = Math.floor(seatCount / 3);
-                                                        let extra = seatCount % 3;
-                                                        let leftSeats = perSide + (extra > 0 ? 1 : 0);
-                                                        let rightSeats = perSide + (extra > 1 ? 1 : 0);
-                                                        let bottomSeats = perSide;
-
-                                                        // Left side
-                                                        for (let i = 0; i < leftSeats; i++, seatIdx++) {
-                                                            const top = offsetY + ((rectH / (leftSeats)) * (i + 1)) - seatSize / 2;
-                                                            seats.push({
-                                                                left: offsetX - seatSize,
-                                                                top,
-                                                                idx: seatIdx,
-                                                            });
-                                                        }
-                                                        // Right side
-                                                        for (let i = 0; i < rightSeats; i++, seatIdx++) {
-                                                            const top = offsetY + ((rectH / (rightSeats)) * (i + 1)) - seatSize / 2;
-                                                            seats.push({
-                                                                left: offsetX + rectW,
-                                                                top,
-                                                                idx: seatIdx,
-                                                            });
-                                                        }
-                                                        // Bottom side
-                                                        for (let i = 0; i < bottomSeats; i++, seatIdx++) {
-                                                            const left = offsetX + ((rectW / (bottomSeats + 1)) * (i + 1)) - seatSize / 2;
-                                                            seats.push({
-                                                                left,
-                                                                top: offsetY + rectH,
-                                                                idx: seatIdx,
-                                                            });
-                                                        }
-                                                    }
-
-                                                    return seats.map(({ left, top, idx }) => {
-                                                        const peserta = arrangedPeserta[mejaIndex * 100 + idx];
-                                                        return (
-                                                            <div
-                                                                key={idx}
-                                                                className="absolute group"
-                                                                style={{
-                                                                    left,
-                                                                    top,
-                                                                    width: seatSize,
-                                                                    height: seatSize,
-                                                                    zIndex: 2,
-                                                                }}
-                                                            >
-                                                                <button
-                                                                    type="button"
-                                                                    className={`w-full h-full rounded-full border flex items-center justify-center text-xs font-medium transition
-        ${peserta
-                                                                            ? peserta.hadir
-                                                                                ? "border-green-400"
-                                                                                : "border-red-400"
-                                                                            : "border-gray-300"}
-        hover:ring-2 hover:ring-blue-400`}
-                                                                    style={{
-                                                                        backgroundColor: peserta ? getRankColor(peserta.rank) : "#f3f4f6"
-                                                                    }}
-                                                                    onClick={() => {
-                                                                        if (peserta) {
-                                                                            const pesertaIndex = fixatedPeserta.findIndex(
-                                                                                p => p && p.nama === peserta.nama
-                                                                            );
-                                                                            if (pesertaIndex !== -1) {
-                                                                                toggleHadir(pesertaIndex);
-                                                                            }
-                                                                        }
-                                                                    }}
-                                                                >
-                                                                    {peserta ? (
-                                                                        <span className="truncate max-w-[80%]">
-                                                                            {idx + 1}
-                                                                        </span>
-                                                                    ) : (
-                                                                        "❌"
-                                                                    )}
-                                                                </button>
-                                                                {/* Tooltip on hover */}
-                                                                {peserta && (
-                                                                    <div className="absolute left-1/2 -translate-x-1/2 -top-8 z-50 hidden group-hover:block bg-black text-white text-xs rounded px-2 py-1 whitespace-nowrap pointer-events-none">
-                                                                        {peserta.nama}
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        );
-                                                    });
-                                                }
-                                            })()}
-
-                                        </div>
-
-                                    </div>
-                                    {(() => {
-                                        const seatCount = tableSeats[mejaIndex] || 6;
-                                        // Collect peserta for this table with seat number
-                                        const pesertaTable = [];
-                                        for (let idx = 0; idx < seatCount; idx++) {
-                                            const peserta = arrangedPeserta[mejaIndex * 100 + idx];
-                                            if (peserta) pesertaTable.push({ nama: peserta.nama, seat: idx });
-                                        }
-                                        // Split into two columns
-                                        const mid = Math.ceil(pesertaTable.length / 2);
-                                        const col1 = pesertaTable.slice(0, mid);
-                                        const col2 = pesertaTable.slice(mid);
-
-                                        return (
-                                            <div className="w-full mt-2 flex flex-row gap-2 justify-center">
-                                                <div className="flex-1 text-xs bg-gray-50 rounded p-1 min-h-[24px]">
-                                                    {col1.map((p, i) => (
-                                                        <div key={i} className="truncate">{p.seat + 1}. {p.nama}</div>
-                                                    ))}
-                                                </div>
-                                                <div className="flex-1 text-xs bg-gray-50 rounded p-1 min-h-[24px]">
-                                                    {col2.map((p, i) => (
-                                                        <div key={i} className="truncate">{p.seat + 1}. {p.nama}</div>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        );
-                                    })()}
-
-
+                                    PANGGUNG
                                 </div>
                             </Draggable>
-                        ))}
-                        <div
-                            style={{
-                                position: 'absolute',
-                                right: 0,
-                                bottom: 0,
-                                width: 24,
-                                height: 24,
-                                cursor: 'nwse-resize',
-                                zIndex: 50,
-                                background: 'rgba(0,0,0,0.05)',
-                                borderTop: '1px solid #ccc',
-                                borderLeft: '1px solid #ccc',
-                                borderBottomRightRadius: 6,
-                                display: 'flex',
-                                alignItems: 'flex-end',
-                                justifyContent: 'flex-end',
-                                userSelect: 'none'
-                            }}
-                            onMouseDown={e => {
-                                e.preventDefault();
-                                isResizing.current = true;
-                            }}
-                            title="Resize area"
-                        >
-                            <svg width="18" height="18" viewBox="0 0 18 18" className="opacity-40">
-                                <path d="M2 16h12M6 12h8M10 8h4" stroke="#888" strokeWidth="2" fill="none" />
-                            </svg>
-                        </div>
-                    </div>
+
+                            {/* Draggable Entrance Arrow */}
+                            <Draggable
+                                position={arrowPos}
+                                onStop={(e, data) => setArrowPos({ x: data.x, y: data.y })}
+                                bounds="parent"
+                            >
+                                <div
+                                    style={{
+                                        width: 40,
+                                        height: 60,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        position: 'absolute',
+                                        zIndex: 20,
+                                        cursor: 'move',
+                                        background: 'transparent'
+                                    }}
+                                >
+                                    {/* Large Black Arrow with Long Body */}
+                                    <svg width="100" height="300" viewBox="0 0 100 500">
+                                        {/* Arrow body */}
+                                        <rect x="35" y="60" width="30" height="370" fill="#111" />
+                                        {/* Arrow head */}
+                                        <polygon points="50,0 95,100 70,100 70,430 30,430 30,100 5,100" fill="#111" />
+                                    </svg>
+                                </div>
+                            </Draggable>
+
+                            {tableOrder.map((mejaIndex, visualIndex) => (
+                                <Draggable
+                                    key={mejaIndex}
+                                    position={tablePositions[visualIndex] || { x: 0, y: 0 }}
+                                    onDrag={(e, data) => handleMultiDrag(visualIndex, mejaIndex, e, data)}
+                                    bounds="parent"
+                                >
+                                    <div
+                                        className={`absolute ${selectedTables.includes(mejaIndex) ? 'ring-2 ring-blue-500' : ''}`}
+                                        style={{
+                                            minWidth: tableShape[mejaIndex] === 'rectangle' ? 200 : 180,
+                                            minHeight: 140,
+                                            zIndex: 10,
+                                            width: tableShape[mejaIndex] === 'rectangle' ? 260 : 140,
+                                        }}
+                                        onClick={e => handleSelectTable(mejaIndex, e)}
+                                    >
+                                        {/* Checkbox for selection */}
+                                        <div className="no-print absolute left-2 top-2 z-20">
+                                            <input
+                                                type="checkbox"
+                                                className="form-checkbox h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                                checked={selectedTables.includes(mejaIndex)}
+                                                // Toggle selection directly, ignore ctrl/meta for checkbox
+                                                onChange={e => {
+                                                    e.stopPropagation();
+                                                    setSelectedTables(prev =>
+                                                        prev.includes(mejaIndex)
+                                                            ? prev.filter(idx => idx !== mejaIndex)
+                                                            : [...prev, mejaIndex]
+                                                    );
+                                                }}
+                                                onClick={e => e.stopPropagation()}
+                                            />
+                                        </div>
+                                        {/* + and - buttons */}
+                                        <div className="flex justify-center items-center gap-2 mb-1 mt-6">
+                                            <button
+                                                onClick={e => { e.stopPropagation(); handleRemoveSeat(mejaIndex); }}
+                                                className="no-print bg-red-500 text-white rounded px-2 py-1 text-xs font-bold hover:bg-red-700"
+                                                title="Kurangi Kursi"
+                                            >−</button>
+                                            <span className="text-sm font-medium">
+                                                Kursi: {tableSeats[mejaIndex] || 6}
+                                            </span>
+                                            <button
+                                                onClick={e => { e.stopPropagation(); handleAddSeat(mejaIndex); }}
+                                                className="no-print bg-green-500 text-white rounded px-2 py-1 text-xs font-bold hover:bg-green-700"
+                                                title="Tambah Kursi"
+                                            >+</button>
+                                        </div>
+                                        <div className="relative flex flex-col items-center" style={{ minHeight: 120, paddingBottom: 32 }}>
+                                            <h3 className="text-center font-semibold mb-2">Meja {visualIndex + 1}</h3>
+                                            <div
+                                                className="relative mx-auto"
+                                                style={{
+                                                    width: 160,
+                                                    height: 100,
+                                                }}
+                                            >
+                                                {tableShape[mejaIndex] === 'circle' ? (
+                                                    <div
+                                                        className="absolute rounded-full bg-gray-200 border border-blue-400"
+                                                        style={{
+                                                            width: 70,
+                                                            height: 70,
+                                                            left: 45,
+                                                            top: 15,
+                                                            zIndex: 1,
+                                                            display: "flex",
+                                                            alignItems: "center",
+                                                            justifyContent: "center",
+                                                            fontWeight: "bold",
+                                                            fontSize: 18,
+                                                        }}
+                                                    >
+                                                        {visualIndex + 1}
+                                                    </div>
+                                                ) : (
+                                                    // Rectangle table
+                                                    <div
+                                                        className="absolute bg-gray-200 border border-blue-400"
+                                                        style={{
+                                                            width: 180, // make table longer
+                                                            height: 60,
+                                                            left: 0,
+                                                            top: 25,
+                                                            zIndex: 1,
+                                                            borderRadius: 8,
+                                                            display: "flex",
+                                                            alignItems: "center",
+                                                            justifyContent: "center",
+                                                            fontWeight: "bold",
+                                                            fontSize: 18,
+                                                        }}
+                                                    >
+                                                        {visualIndex + 1}
+                                                    </div>
+                                                )}
+                                                {/* Render seats dynamically */}
+                                                {(() => {
+                                                    const seatCount = tableSeats[mejaIndex] || 6;
+                                                    if (tableShape[mejaIndex] === 'circle') {
+                                                        return Array.from({ length: seatCount }).map((_, idx) => {
+                                                            const angle = (idx / (seatCount - 1 || 1)) * Math.PI;
+                                                            const radius = 65;
+                                                            const seatSize = 36;
+                                                            const centerX = 80;
+                                                            const centerY = 50;
+                                                            const left = centerX + radius * Math.cos(angle) - seatSize / 2;
+                                                            const top = centerY + radius * Math.sin(angle) - seatSize / 2;
+                                                            const peserta = arrangedPeserta[mejaIndex * 100 + idx];
+
+                                                            return (
+                                                                <div
+                                                                    key={idx}
+                                                                    className="absolute group"
+                                                                    style={{
+                                                                        left,
+                                                                        top,
+                                                                        width: seatSize,
+                                                                        height: seatSize,
+                                                                        zIndex: 2,
+                                                                    }}
+                                                                >
+                                                                    <button
+                                                                        type="button"
+                                                                        className={`w-full h-full rounded-full border flex items-center justify-center text-xs font-medium transition
+        ${peserta
+                                                                                ? peserta.hadir
+                                                                                    ? "border-green-400"
+                                                                                    : "border-red-400"
+                                                                                : "border-gray-300"}
+        hover:ring-2 hover:ring-blue-400`}
+                                                                        style={{
+                                                                            backgroundColor: peserta ? getRankColor(peserta.rank) : "#f3f4f6"
+                                                                        }}
+                                                                        onClick={() => {
+                                                                            if (peserta) {
+                                                                                const pesertaIndex = fixatedPeserta.findIndex(
+                                                                                    p => p && p.nama === peserta.nama
+                                                                                );
+                                                                                if (pesertaIndex !== -1) {
+                                                                                    toggleHadir(pesertaIndex);
+                                                                                }
+                                                                            }
+                                                                        }}
+                                                                    >
+                                                                        {peserta ? (
+                                                                            <span className="truncate max-w-[80%]">
+                                                                                {idx + 1}
+                                                                            </span>
+                                                                        ) : (
+                                                                            "❌"
+                                                                        )}
+                                                                    </button>
+                                                                    {/* Tooltip on hover */}
+                                                                    {peserta && (
+                                                                        <div className="absolute left-1/2 -translate-x-1/2 -top-8 z-50 hidden group-hover:block bg-black text-white text-xs rounded px-2 py-1 whitespace-nowrap pointer-events-none">
+                                                                            {peserta.nama}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            );
+                                                        });
+                                                    } else {
+                                                        // Rectangle: distribute seats on left, right, and bottom sides only
+                                                        const seatCount = tableSeats[mejaIndex] || 6;
+                                                        const seatSize = 32;
+                                                        const tableWidth = 180;
+                                                        const offsetX = 0;
+                                                        const offsetY = 25;
+                                                        const rectH = 60;
+                                                        return Array.from({ length: seatCount }).map((_, idx) => {
+                                                            // Evenly distribute seats along the bottom
+                                                            const left = offsetX + ((tableWidth / (seatCount + 1)) * (idx + 1)) - seatSize / 2;
+                                                            const top = offsetY + rectH + 8; // 8px gap below table
+                                                            const peserta = arrangedPeserta[mejaIndex * 100 + idx];
+                                                            return (
+                                                                <div
+                                                                    key={idx}
+                                                                    className="absolute group"
+                                                                    style={{
+                                                                        left,
+                                                                        top,
+                                                                        width: seatSize,
+                                                                        height: seatSize,
+                                                                        zIndex: 2,
+                                                                    }}
+                                                                >
+                                                                    <button
+                                                                        type="button"
+                                                                        className={`w-full h-full rounded-full border flex items-center justify-center text-xs font-medium transition
+                        ${peserta
+                                                                                ? peserta.hadir
+                                                                                    ? "border-green-400"
+                                                                                    : "border-red-400"
+                                                                                : "border-gray-300"}
+                        hover:ring-2 hover:ring-blue-400`}
+                                                                        style={{
+                                                                            backgroundColor: peserta ? getRankColor(peserta.rank) : "#f3f4f6"
+                                                                        }}
+                                                                        onClick={() => {
+                                                                            if (peserta) {
+                                                                                const pesertaIndex = fixatedPeserta.findIndex(
+                                                                                    p => p && p.nama === peserta.nama
+                                                                                );
+                                                                                if (pesertaIndex !== -1) {
+                                                                                    toggleHadir(pesertaIndex);
+                                                                                }
+                                                                            }
+                                                                        }}
+                                                                    >
+                                                                        {peserta ? (
+                                                                            <span className="truncate max-w-[80%]">
+                                                                                {idx + 1}
+                                                                            </span>
+                                                                        ) : (
+                                                                            "❌"
+                                                                        )}
+                                                                    </button>
+                                                                    {/* Tooltip on hover */}
+                                                                    {peserta && (
+                                                                        <div className="absolute left-1/2 -translate-x-1/2 -top-8 z-50 hidden group-hover:block bg-black text-white text-xs rounded px-2 py-1 whitespace-nowrap pointer-events-none">
+                                                                            {peserta.nama}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            );
+                                                        });
+                                                    }
+                                                })()}
+
+                                            </div>
+
+                                        </div>
+                                        {(() => {
+                                            const seatCount = tableSeats[mejaIndex] || 6;
+                                            // Collect peserta for this table with seat number
+                                            const pesertaTable = [];
+                                            for (let idx = 0; idx < seatCount; idx++) {
+                                                const peserta = arrangedPeserta[mejaIndex * 100 + idx];
+                                                if (peserta) pesertaTable.push({ nama: peserta.nama, seat: idx });
+                                            }
+                                            // Split into two columns
+                                            const mid = Math.ceil(pesertaTable.length / 2);
+                                            const col1 = pesertaTable.slice(0, mid);
+                                            const col2 = pesertaTable.slice(mid);
+
+                                            return (
+                                                <div className="w-full mt-2 flex flex-row gap-2 justify-center">
+                                                    <div className="flex-1 text-xs bg-gray-50 rounded p-1 min-h-[24px]">
+                                                        {col1.map((p, i) => (
+                                                            <div key={i} className="truncate">{p.seat + 1}. {p.nama}</div>
+                                                        ))}
+                                                    </div>
+                                                    <div className="flex-1 text-xs bg-gray-50 rounded p-1 min-h-[24px]">
+                                                        {col2.map((p, i) => (
+                                                            <div key={i} className="truncate">{p.seat + 1}. {p.nama}</div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })()}
+
+
+                                    </div>
+                                </Draggable>
+                            ))}
+                            <div
+                                style={{
+                                    position: 'absolute',
+                                    right: 0,
+                                    bottom: 0,
+                                    width: 24,
+                                    height: 24,
+                                    cursor: 'nwse-resize',
+                                    zIndex: 50,
+                                    background: 'rgba(0,0,0,0.05)',
+                                    borderTop: '1px solid #ccc',
+                                    borderLeft: '1px solid #ccc',
+                                    borderBottomRightRadius: 6,
+                                    display: 'flex',
+                                    alignItems: 'flex-end',
+                                    justifyContent: 'flex-end',
+                                    userSelect: 'none'
+                                }}
+                                onMouseDown={e => {
+                                    e.preventDefault();
+                                    isResizing.current = true;
+                                }}
+                                title="Resize area"
+                            >
+                                <svg width="18" height="18" viewBox="0 0 18 18" className="opacity-40">
+                                    <path d="M2 16h12M6 12h8M10 8h4" stroke="#888" strokeWidth="2" fill="none" />
+                                </svg>
+                            </div>
+                        </div></div>
+
 
                 </div>
 
@@ -1177,7 +1351,15 @@ const Dashboard = () => {
                                 <div className="font-bold mb-1">Meja {tIdx + 1}</div>
                                 {pesertaList.length === 0 && <div className="text-xs text-gray-400">Kosong</div>}
                                 {pesertaList.map((p, idx) => (
-                                    <div key={idx} className="flex items-center gap-2 p-2 border rounded bg-white shadow-sm">
+                                    <PesertaRow
+                                        key={idx}
+                                        peserta={p}
+                                        index={idx}
+                                        tableIdx={tIdx}
+                                        movePeserta={movePeserta}
+                                    >
+                                        <div ><i class="bi bi-grip-vertical"></i></div>
+                                        <p>{idx + 1}.</p>
                                         {/* Rank box */}
                                         <RankSelector
                                             value={p.rank}
@@ -1196,7 +1378,7 @@ const Dashboard = () => {
                                         <button
                                             onClick={() => toggleHadir(peserta.findIndex(x => x.nama === p.nama))}
                                             className={`text-xs px-2 py-1 rounded font-semibold
-                ${p.hadir ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}
+        ${p.hadir ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}
                                             style={{
                                                 minWidth: 60,
                                                 textAlign: 'center',
@@ -1216,7 +1398,7 @@ const Dashboard = () => {
                                             className='no-print text-red-500 hover:text-red-700 ml-1 text-sm font-bold px-2'>
                                             &times;
                                         </button>
-                                    </div>
+                                    </PesertaRow>
                                 ))}
                             </div>
                         ))}
@@ -1335,15 +1517,43 @@ const Dashboard = () => {
 export function DashboardWithFooter() {
     return (
         <>
-            <header className="w-full flex items-center justify-between px-6 bg-blue-700 text-white shadow rounded-b-lg">
-                <div className="flex items-center gap-3">
+            <header
+                className="w-full flex items-center justify-between px-6 text-white shadow rounded-b-lg"
+                style={{
+                    // Soft blue futuristic gradient with subtle pattern overlay
+                    background: `linear-gradient(100deg, #3b82f6 0%, #60a5fa 60%, #a5d8ff 100%)`,
+                    position: 'relative',
+                    overflow: 'hidden',
+                }}
+            >
+                {/* SVG pattern overlay for subtle futuristic dots */}
+                <svg
+                    width="100%"
+                    height="100%"
+                    style={{
+                        position: "absolute",
+                        left: 0,
+                        top: 0,
+                        zIndex: 0,
+                        pointerEvents: "none",
+                        opacity: 0.13,
+                    }}
+                >
+                    <defs>
+                        <pattern id="dots" x="0" y="0" width="24" height="24" patternUnits="userSpaceOnUse">
+                            <circle cx="2" cy="2" r="2" fill="#fff" />
+                        </pattern>
+                    </defs>
+                    <rect width="100%" height="100%" fill="url(#dots)" />
+                </svg>
+                <div className="flex items-center gap-3 z-10">
                     {/* Icon */}
-                    <a href="#" class="d-flex pt-4 justify-content-center mb-4">
-                        <img src={logo_tni_au} alt="" width="50"></img>
+                    <a href="#" className="d-flex pt-4 justify-content-center mb-4">
+                        <img src={logo_tni_au} alt="" width="50" />
                     </a>
-                    <span className="text-2xl font-semibold tracking-wide">Seating Arrangement System</span>
+                    <span className="text-3xl font-semibold tracking-wide">SMART SEATING <sup>25</sup></span>
                 </div>
-                <div className="no-print flex items-center gap-4">
+                <div className="no-print flex items-center gap-4 z-10">
                     <span className="text-lg font-normal">
                         Selamat datang, {localStorage.getItem('username') || 'User'}!
                     </span>
@@ -1352,16 +1562,17 @@ export function DashboardWithFooter() {
                             localStorage.clear();
                             window.location.href = "/";
                         }}
-
                         className="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded font-normal transition"
                     >
                         Logout
                     </button>
                 </div>
             </header>
-            <Dashboard />
+            <DndProvider backend={HTML5Backend}>
+                <Dashboard />
+            </DndProvider>
             <footer className="w-full text-center py-4 text-gray-500 text-xs mt-8">
-                &copy; Disinfolahtaau {new Date().getFullYear()} Seating Arrangement System. All rights reserved.
+                &copy; Disinfolahtaau {new Date().getFullYear()} Smart Seating 25: Seating Arrangement System. All rights reserved.
             </footer>
         </>
     );
