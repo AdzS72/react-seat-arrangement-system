@@ -7,7 +7,13 @@ import { useNavigate } from "react-router-dom";
 import Select from 'react-select';
 import { useAuth } from "../hooks/useAuth";
 import logo_tni_au from "../images/Lambang_TNI_AU.png";
-import bg from "../images/bg_login.jpg";
+import tutorialAddTable from "../images/tutorial_1.1.png";
+import tutorialAddChair from "../images/tutorial_1.2.png";
+import tutorialMultiSelect from "../images/tutorial_2.png";
+import tutorialPeserta from "../images/tutorial_3.png";
+import tutorialRanks from "../images/tutorial_4.png";
+import tutorialDragPeserta from "../images/tutorial_5.png";
+import tutorialSaveLayout from "../images/tutorial_6.png";
 
 const Dashboard = () => {
     const navigate = useNavigate();
@@ -1020,7 +1026,7 @@ const Dashboard = () => {
                             <div class="dropdown no-print">
                                 <button className="dropdown-toggle no-print btn btn-primary text-white px-4 py-2 text-base md:text-m"
                                     style={{ minWidth: 44, minHeight: 44 }} type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                    Tambah Meja
+                                    <i class="bi bi-plus-circle pr-3"></i>Tambah Meja
                                 </button>
                                 <ul class="dropdown-menu">
                                     <li><a class="dropdown-item" onClick={handleTambahMejaCircle}>Meja Bulat</a></li>
@@ -1032,9 +1038,9 @@ const Dashboard = () => {
                                 className="no-print btn btn-primary text-white px-4 py-2 text-base md:text-m"
                                 style={{ minWidth: 44, minHeight: 44 }} // Minimum touch target
                             >
-                                Kurangi Meja
+                                <i class="bi bi-dash-circle pr-3"></i>Kurangi Meja
                             </button>
-                            <span className='bg-gray-200 ml-2 text-gray-800 px-4 py-2 rounded border text-sm font-medium'>
+                            <span className='no-print bg-gray-200 ml-2 text-gray-800 px-4 py-2 rounded border text-sm font-medium'>
                                 Total Meja: {meja}
                             </span>
                         </div>
@@ -1481,6 +1487,7 @@ const Dashboard = () => {
                                 </Draggable>
                             ))}
                             <div
+                                className='no-print'
                                 style={{
                                     position: 'absolute',
                                     right: 0,
@@ -1513,7 +1520,7 @@ const Dashboard = () => {
 
                 </div>
 
-                <div className='w-full flex-shrink-0' style={{ pageBreakBefore: 'always' }}>
+                <div className='no-print w-full flex-shrink-0' >
                     <div className="space-y-3 mb-3" >
                         <span className="text-lg font-semibold">Nama Kegiatan: </span>
                     </div>
@@ -1522,7 +1529,7 @@ const Dashboard = () => {
                             style={{ resize: "vertical" }} />
                     </div>
                 </div>
-                <div className='w-full flex-shrink-0' >
+                <div className='w-full flex-shrink-0' style={{ pageBreakBefore: 'always' }}>
                     <div className='flex justify-between items-center mb-3'>
                         <h2 className='text-lg font-semibold'>Daftar Peserta per Meja</h2>
                         <button onClick={handleTambahPeserta} className='no-print bg-blue-500 text-white px-3 py-1 rounded hover:btn btn-primary'>
@@ -1544,7 +1551,7 @@ const Dashboard = () => {
                                         listType={tIdx}
                                         movePeserta={movePeserta}
                                     >
-                                        <div ><i class="bi bi-grip-vertical"></i></div>
+                                        <div ><i class="bi bi-grip-vertical no-print"></i></div>
                                         <p>{idx + 1}.</p>
                                         {/* Rank box */}
                                         <RankSelector
@@ -1720,6 +1727,9 @@ const Dashboard = () => {
 };
 
 export function DashboardWithFooter() {
+    const [showTutorial, setShowTutorial] = useState(false);
+    const blurClass = showTutorial ? "filter blur-sm pointer-events-none select-none" : "";
+
     return (
         <>
             <header
@@ -1727,7 +1737,7 @@ export function DashboardWithFooter() {
                 style={{
                     background: `linear-gradient(100deg, #3b82f6 0%, #60a5fa 60%, #a5d8ff 100%)`,
                     position: 'relative',
-                    overflow: 'hidden',
+                    overflow: 'visible',
                 }}
             >
                 {/* SVG pattern overlay for subtle futuristic dots */}
@@ -1758,26 +1768,215 @@ export function DashboardWithFooter() {
                     <span className="text-3xl font-semibold tracking-wide">SMART SEATING <sup>25</sup></span>
                 </div>
                 <div className="no-print flex items-center gap-4 z-10">
-                    <span className="text-lg font-normal">
-                        Selamat datang, {localStorage.getItem('username') || 'User'}!
-                    </span>
-                    <button
-                        onClick={() => {
-                            localStorage.clear();
-                            window.location.href = "/";
-                        }}
-                        className="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded font-normal transition"
-                    >
-                        Logout
-                    </button>
+
+                    {/* Dropdown for Tutorial and Logout */}
+                    <div className="dropdown">
+                        <button
+                            className="btn dropdown-toggle"
+                            type="button"
+                            id="dropdownMenuButton"
+                            data-bs-toggle="dropdown"
+                            aria-expanded="false"
+                        >
+                            <span className="text-lg font-normal">
+                                Selamat datang, {localStorage.getItem('username') || 'User'}!
+                            </span>
+                        </button>
+                        <ul className="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownMenuButton">
+                            <li>
+                                <button
+                                    className="dropdown-item"
+                                    onClick={() => setShowTutorial(true)}
+                                >
+                                    <i className="bi bi-info-circle me-2"></i> Tutorial
+                                </button>
+                            </li>
+                            <li><hr className="dropdown-divider" /></li>
+                            <li>
+                                <button
+                                    className="dropdown-item text-danger"
+                                    onClick={() => {
+                                        localStorage.clear();
+                                        window.location.href = "/";
+                                    }}
+                                >
+                                    <i className="bi bi-box-arrow-right me-2"></i> Logout
+                                </button>
+                            </li>
+                        </ul>
+                    </div>
                 </div>
             </header>
-            <DndProvider backend={HTML5Backend}>
-                <Dashboard />
-            </DndProvider>
-            <footer className="w-full text-center py-4 text-gray-500 text-xs mt-8">
-                &copy; Disinfolahtaau {new Date().getFullYear()} Smart Seating 25: Seating Arrangement System. All rights reserved.
-            </footer>
+
+            {/* Modal for Tutorial */}
+            <div
+                className={`modal fade ${showTutorial ? "show d-block" : ""}`}
+                tabIndex="-1"
+                style={{
+                    background: showTutorial ? "rgba(0,0,0,0.4)" : "transparent",
+                    backdropFilter: showTutorial ? "blur(6px)" : "none",
+                    transition: "backdrop-filter 0.3s",
+                    zIndex: 1050,
+                }}
+                aria-modal="true"
+                role="dialog"
+            >
+                <div className="modal-dialog modal-xl modal-dialog-centered">
+                    <div className="modal-content">
+                        <div className="modal-header">
+                            <h5 className="modal-title"><i className="bi bi-info-circle"></i> Tutorial Penggunaan Smart Seating</h5>
+                            <button type="button" className="btn-close" onClick={() => setShowTutorial(false)}></button>
+                        </div>
+                        <div className="modal-body" style={{ maxHeight: "70vh", overflowY: "auto" }}>
+                            <ol className="list-decimal ps-4 space-y-3">
+                                <li>
+                                    <b>Menambah & Mengatur Meja</b>
+                                    <ul className="list-disc ms-5 mt-1">
+                                        <li>
+                                            Klik tombol <b>Tambah Meja</b> untuk menambah meja bulat atau persegi. Pilih tipe meja sesuai kebutuhan.
+                                        </li>
+                                        <li>
+                                            Untuk mengurangi jumlah meja, klik tombol <b>Kurangi Meja</b>.
+                                        </li>
+                                        <li>
+                                            Setiap meja dapat diatur jumlah kursinya dengan tombol <b>+</b> dan <b>-</b> di atas meja.
+                                        </li>
+                                    </ul>
+                                    <div className="my-2 flex justify-center items-center gap-4">
+                                        <img src={tutorialAddTable} alt="Ilustrasi tambah meja" style={{ maxHeight: 140, maxWidth: '100%' }} />
+                                        <img src={tutorialAddChair} alt="Ilustrasi tambah kursi" style={{ maxHeight: 140, maxWidth: '100%' }} />
+                                    </div>
+                                </li>
+                                <li>
+                                    <b>Memindahkan & Menata Meja, Panggung, dan Panah Masuk</b>
+                                    <ul className="list-disc ms-5 mt-1">
+                                        <li>
+                                            <b>Drag & drop</b> meja, panggung, dan panah masuk ke posisi yang diinginkan pada area tata letak.
+                                        </li>
+                                        <li>
+                                            Untuk memindahkan beberapa meja sekaligus, centang beberapa meja lalu drag salah satu meja yang terpilih.
+                                        </li>
+                                        <li>
+                                            Tata letak akan tersimpan sesuai posisi terakhir saat Anda menyimpan layout.
+                                        </li>
+                                    </ul>
+                                    <div className="my-2 flex justify-center items-center gap-4">
+                                        <img src={tutorialMultiSelect} alt="Ilustrasi multiselect" style={{ maxHeight: 240, maxWidth: '100%' }} />
+                                    </div>
+                                </li>
+                                <li>
+                                    <b>Menambah, Mengedit, dan Mengelola Peserta</b>
+                                    <ul className="list-disc ms-5 mt-1">
+                                        <li>
+                                            Klik <b>+ Tambah</b> untuk menambah peserta baru.
+                                        </li>
+                                        <li>
+                                            Edit nama peserta langsung di kolom nama.
+                                        </li>
+                                        <li>
+                                            Pilih pangkat peserta dengan klik kotak warna pangkat di samping nama.
+                                        </li>
+                                        <li>
+                                            Tandai kehadiran peserta dengan tombol <b>Hadir/Tidak</b>.
+                                        </li>
+                                        <li>
+                                            Klik <b>&times;</b> untuk menghapus peserta.
+                                        </li>
+                                        <div className="my-2 flex justify-center items-center gap-4">
+                                            <img src={tutorialPeserta} alt="Ilustrasi manajemen peserta" style={{ maxHeight: 320, maxWidth: '100%' }} />
+                                        </div>
+                                    </ul>
+
+                                </li>
+                                <li>
+                                    <b>Drag & Drop Peserta ke Meja</b>
+                                    <ul className="list-disc ms-5 mt-1">
+                                        <li>
+                                            Peserta dapat dipindahkan antar meja, atau dari daftar <b>Belum Tertampung</b> ke meja, dengan cara drag & drop baris peserta.
+                                        </li>
+                                        <li>
+                                            Urutan peserta di dalam meja dapat diubah dengan drag & drop.
+                                        </li>
+                                        <li>
+                                            Peserta yang tidak hadir otomatis masuk ke daftar <b>Tidak Hadir</b>.
+                                        </li>
+                                    </ul>
+                                    <div className="my-2 flex justify-center items-center gap-4">
+                                        <img src={tutorialDragPeserta} alt="Ilustrasi drag peserta" style={{ maxHeight: 140, maxWidth: '100%' }} />
+                                    </div>
+                                </li>
+                                <li>
+                                    <b>Kategori Warna Berdasarkan Pangkat</b>
+                                    <ul className="list-disc ms-5 mt-1">
+                                        <li>
+                                            Setiap pangkat memiliki warna berbeda pada kursi dan kotak pangkat peserta.
+                                        </li>
+                                        <li>
+                                            Contoh: <span style={{ background: "#FFD700", padding: "2px 8px", borderRadius: 4 }}>Bintang 4</span> (emas), <span style={{ background: "#38BDF8", padding: "2px 8px", borderRadius: 4 }}>Pama</span> (biru muda), dst.
+                                        </li>
+                                        <li>
+                                            Warna ini memudahkan identifikasi posisi peserta penting di tata letak.
+                                        </li>
+                                    </ul>
+                                    <div className="my-2 flex justify-center items-center gap-4">
+                                        <img src={tutorialRanks} alt="Ilustrasi kategori pangkat" style={{ maxHeight: 240, maxWidth: '100%' }} />
+                                    </div>
+                                </li>
+                                <li>
+                                    <b>Menyimpan, Menghapus, dan Mencetak Layout</b>
+                                    <ul className="list-disc ms-5 mt-1">
+                                        <li>
+                                            Klik <b>Simpan Layout</b> untuk menyimpan tata letak beserta seluruh data peserta dan posisi meja.
+                                        </li>
+                                        <li>
+                                            Klik <b>Hapus Layout</b> untuk menghapus layout yang dipilih dari database.
+                                        </li>
+                                        <li>
+                                            Klik <b>Cetak Layout</b> untuk mencetak tampilan tata letak beserta daftar peserta.
+                                        </li>
+                                    </ul>
+                                    <div className="my-2 flex justify-center items-center gap-4">
+                                        <img src={tutorialSaveLayout} alt="Ilustrasi manajemen layout" style={{ maxHeight: 240, maxWidth: '100%' }} />
+                                    </div>
+                                </li>
+                                <li>
+                                    <b>Tips & Catatan</b>
+                                    <ul className="list-disc ms-5 mt-1">
+                                        <li>
+                                            Gunakan fitur <b>dropdown kanan atas</b> untuk membuka tutorial ini atau melakukan logout.
+                                        </li>
+                                        <li>
+                                            Tata letak area dapat di-resize dengan menarik pojok kanan bawah area tata letak.
+                                        </li>
+                                        <li>
+                                            Untuk bantuan lebih lanjut, hubungi admin.
+                                        </li>
+                                    </ul>
+                                </li>
+                            </ol>
+                            <hr />
+                            <div className="mt-2 text-muted text-sm">
+                                Untuk bantuan lebih lanjut, hubungi admin.
+                            </div>
+                        </div>
+                        <div className="modal-footer">
+                            <button type="button" className="btn btn-secondary" onClick={() => setShowTutorial(false)}>
+                                Tutup
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Blur main content when modal is open */}
+            <div className={blurClass}>
+                <DndProvider backend={HTML5Backend}>
+                    <Dashboard />
+                </DndProvider>
+                <footer className="w-full text-center py-4 text-gray-500 text-xs mt-8">
+                    &copy; Disinfolahtaau {new Date().getFullYear()} Smart Seating 25: Seating Arrangement System. All rights reserved.
+                </footer>
+            </div>
         </>
     );
 }
