@@ -23,10 +23,6 @@ code {
     position: absolute;
 }
 
-.dropdown-menu {
-  z-index: 2000 !important;
-}
-
 @media print {
   #print-area {
     zoom: 0.7;
@@ -42,13 +38,13 @@ code {
   }
 
   .print-scale-zone {
-    margin-left: auto !important;
+    margin-left: -3% !important;
     margin-right: auto !important;
     display: block !important;
     width: unset !important;
     max-width: unset !important;
   }
-
+  
   .print-scale-zone > div {
     margin-left: auto !important;
     margin-right: auto !important;

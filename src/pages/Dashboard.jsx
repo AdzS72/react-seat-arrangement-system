@@ -1045,7 +1045,7 @@ const Dashboard = () => {
                             </span>
                         </div>
 
-                        <div className=' flex items-center gap-3 text-sm'>
+                        <div className=' flex items-center text-sm'>
                             {successAlert && (
                                 <div class="alert alert-success" role="alert">
                                     Data Berhasil Disimpan!
@@ -1675,45 +1675,45 @@ const Dashboard = () => {
                                         listType={SPECIAL_LISTS.TIDAK_HADIR}
                                         movePeserta={movePeserta}
                                     >
-                                        <div key={idx} className="flex items-center gap-2 p-2 border rounded bg-white shadow-sm">
-                                            <RankSelector
-                                                value={p.rank}
-                                                onChange={rank => handleChangeRank(peserta.findIndex(x => x.nama === p.nama), rank)}
-                                            />
-                                            <input
-                                                type='text'
-                                                value={p.nama}
-                                                onChange={e => handleGantiNama(peserta.findIndex(x => x.nama === p.nama), e.target.value)}
-                                                className='flex-grow border rounded px-2 py-1 text-sm min-w-[120px]'
-                                                style={{
-                                                    backgroundColor: getRankColor(p.rank),
-                                                    transition: 'background 0.2s'
-                                                }}
-                                            />
-                                            <button
-                                                onClick={() => toggleHadir(peserta.findIndex(x => x.nama === p.nama))}
-                                                className={`text-xs px-2 py-1 rounded font-semibold
+                                        <div ><i class="bi bi-grip-vertical"></i></div>
+                                        <p>{idx + 1}.</p>
+                                        <RankSelector
+                                            value={p.rank}
+                                            onChange={rank => handleChangeRank(peserta.findIndex(x => x.nama === p.nama), rank)}
+                                        />
+                                        <input
+                                            type='text'
+                                            value={p.nama}
+                                            onChange={e => handleGantiNama(peserta.findIndex(x => x.nama === p.nama), e.target.value)}
+                                            className='flex-grow border rounded px-2 py-1 text-sm min-w-[120px]'
+                                            style={{
+                                                backgroundColor: getRankColor(p.rank),
+                                                transition: 'background 0.2s'
+                                            }}
+                                        />
+                                        <button
+                                            onClick={() => toggleHadir(peserta.findIndex(x => x.nama === p.nama))}
+                                            className={`text-xs px-2 py-1 rounded font-semibold
                                 ${p.hadir ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}
-                                                style={{
-                                                    minWidth: 60,
-                                                    textAlign: 'center',
-                                                    backgroundColor: p.hadir ? '#bbf7d0' : '#fecaca',
-                                                    color: p.hadir ? '#166534' : '#991b1b'
-                                                }}>
-                                                {p.hadir ? 'Hadir' : 'Tidak'}
-                                            </button>
-                                            <button
-                                                onClick={() => {
-                                                    const idxPeserta = peserta.findIndex(x => x.nama === p.nama);
-                                                    const updated = [...peserta];
-                                                    updated.splice(idxPeserta, 1);
-                                                    setPeserta(updated);
-                                                }}
-                                                title='Hapus Peserta'
-                                                className='no-print text-red-500 hover:text-red-700 ml-1 text-sm font-bold px-2'>
-                                                &times;
-                                            </button>
-                                        </div>
+                                            style={{
+                                                minWidth: 60,
+                                                textAlign: 'center',
+                                                backgroundColor: p.hadir ? '#bbf7d0' : '#fecaca',
+                                                color: p.hadir ? '#166534' : '#991b1b'
+                                            }}>
+                                            {p.hadir ? 'Hadir' : 'Tidak'}
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                const idxPeserta = peserta.findIndex(x => x.nama === p.nama);
+                                                const updated = [...peserta];
+                                                updated.splice(idxPeserta, 1);
+                                                setPeserta(updated);
+                                            }}
+                                            title='Hapus Peserta'
+                                            className='no-print text-red-500 hover:text-red-700 ml-1 text-sm font-bold px-2'>
+                                            &times;
+                                        </button>
                                     </PesertaRow>
                                 ));
                             })()}
